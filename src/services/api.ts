@@ -242,7 +242,11 @@ export const getCamera = (id: string) =>
   apiFetch<Camera>(`/api/cameras/${id}`, undefined, MOCK_CAMERAS.find(c => c.id === id) || MOCK_CAMERAS[0]);
 
 export const updateCamera = (id: string, update: { enabled?: boolean; fps?: number; name?: string }) =>
-  apiFetch<Camera>(`/api/cameras/${id}`, { method: 'PATCH', body: JSON.stringify(update) }, { ...MOCK_CAMERAS[0], ...update });
+  apiFetch<Camera>(`/api/cameras/${id}`, { method: 'PATCH', body: JSON.stringify(update) }, {
+    ...MOCK_CAMERAS[0],
+    ...update,
+    enabled: update.enabled !== undefined ? (update.enabled ? 1 : 0) : MOCK_CAMERAS[0].enabled,
+  });
 
 // ─────────────────────────── Watchlist ────────────────────────────────────
 

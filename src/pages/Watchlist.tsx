@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import Badge from "../components/Badge";
 import { useApp } from "../context/AppContext";
 import type { WatchlistEntry, Alert } from "../services/api";

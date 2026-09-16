@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { getSettings, updateSettings } from "../services/api";
 import { Card, Toggle, Btn, SectionHeader, InputField, Input, Select } from "../components/ui";
 
@@ -31,11 +31,11 @@ export default function Settings() {
         max_track_age: Number(res.max_track_age ?? 30),
         fps_target: Number(res.fps_target ?? 30),
         retention_days: Number(res.retention_days ?? 30),
-        enable_anpr: res.enable_anpr === "true" || res.enable_anpr === true,
-        enable_reid: res.enable_reid === "true" || res.enable_reid === true,
-        enable_speed_detection: res.enable_speed_detection === "true" || res.enable_speed_detection === true,
-        enable_wrong_way: res.enable_wrong_way === "true" || res.enable_wrong_way === true,
-        enable_congestion_alerts: res.enable_congestion_alerts === "true" || res.enable_congestion_alerts === true,
+        enable_anpr: String(res.enable_anpr) === "true",
+        enable_reid: String(res.enable_reid) === "true",
+        enable_speed_detection: String(res.enable_speed_detection) === "true",
+        enable_wrong_way: String(res.enable_wrong_way) === "true",
+        enable_congestion_alerts: String(res.enable_congestion_alerts) === "true",
         alert_email: res.alert_email || "admin@urbantrax.gov.in",
         timezone: res.timezone || "Asia/Kolkata",
         site_name: res.site_name || "UrbanTrax AI ΓÇö Bangalore",

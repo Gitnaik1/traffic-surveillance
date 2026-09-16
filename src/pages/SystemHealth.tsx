@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, Badge, KpiCard, SectionHeader } from "../components/ui";
 import { getSystemHealth } from "../services/api";
 import type { SystemHealth as SystemHealthType } from "../services/api";

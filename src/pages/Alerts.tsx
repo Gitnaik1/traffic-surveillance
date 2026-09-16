@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Badge from "../components/Badge";
 import { useApp } from "../context/AppContext";
 import { acknowledgeAllAlerts } from "../services/api";

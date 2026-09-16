@@ -1,5 +1,6 @@
 import asyncio
 import cv2
+import numpy as np
 import json
 import time
 import base64
@@ -339,9 +340,34 @@ if ML_AVAILABLE:
     except Exception as e:
         print(f"[WARN] ML pipeline init failed (running without AI): {e}")
 
-# ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+# Preload initial multi-camera vehicle gallery from dataset crops for immediate demonstration
+if ML_AVAILABLE and shared_reid_engine:
+    try:
+        import glob
+        crop_dirs = sorted(glob.glob("data/vehicle_reid_dataset/crops/*"))[:25]
+        for d in crop_dirs:
+            v_name = os.path.basename(d)
+            imgs = sorted(glob.glob(os.path.join(d, "*.jpg")))
+            if imgs:
+                for idx, img_path in enumerate(imgs[:3]):
+                    cam_name = os.path.basename(img_path).split("_")[0] if "_" in os.path.basename(img_path) else "CAM-001"
+                    c_img = cv2.imread(img_path)
+                    if c_img is not None:
+                        sim_plate = f"KA0{idx+1}{v_name[-4:]}"
+                        shared_reid_engine.register_detection(
+                            camera_id=cam_name.upper(),
+                            vehicle_id=f"UTX-{v_name}",
+                            plate_text=sim_plate,
+                            vehicle_crop=c_img,
+                            timestamp=time.time() - (len(imgs) - idx) * 120
+                        )
+        print(f"[ReID] Pre-indexed {len(shared_reid_engine.journey_db)} vehicles and {len(shared_reid_engine.matched_links)} cross-camera links.")
+    except Exception as e:
+        print(f"[ReID] Gallery preload notice: {e}")
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Pydantic Models
-# ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+# ─────────────────────────────────────────────────────────────────────────────
 
 class WatchlistAdd(BaseModel):
     plate_number: str
@@ -565,6 +591,98 @@ def get_alerts(limit: int = 50, severity: Optional[str] = None, acknowledged: Op
     conn.close()
     return {"alerts": rows_to_list(rows)}
 
+class ReIDQueryRequest(BaseModel):
+    image_base64: str = ""
+    top_k: int = 5
+    similarity_threshold: float = 0.60
+
+@app.get("/api/reid/status")
+def get_reid_status():
+    if not shared_reid_engine:
+        return {"status": "inactive", "message": "ReID engine not initialized"}
+    return {
+        "status": "active" if shared_reid_engine.ort_session else "fallback",
+        "model": "ResNet-50 512-D L2-Normalized Embedding",
+        "model_file": "ml_service/vehicle_reid_512d.onnx",
+        "embedding_dim": 512,
+        "runtime": "ONNX Runtime (CPUExecutionProvider)",
+        "indexed_identities": len(shared_reid_engine.journey_db),
+        "total_matched_links": len(shared_reid_engine.matched_links),
+        "similarity_threshold": shared_reid_engine.similarity_threshold
+    }
+
+@app.get("/api/reid/links")
+def get_reid_links():
+    if not shared_reid_engine:
+        return {"links": []}
+    return {"links": shared_reid_engine.matched_links[-30:]}
+
+@app.get("/api/reid/tracked_vehicles")
+def get_reid_tracked_vehicles():
+    if not shared_reid_engine:
+        return {"vehicles": []}
+    results = []
+    for key, visits in shared_reid_engine.journey_db.items():
+        if not visits:
+            continue
+        first_visit = visits[0]
+        last_visit = visits[-1]
+        results.append({
+            "key": key,
+            "plate": last_visit.get("plate_text", "UNKNOWN"),
+            "vehicle_id": last_visit.get("vehicle_id", key),
+            "first_camera": first_visit.get("camera_id"),
+            "current_camera": last_visit.get("camera_id"),
+            "first_seen": time.strftime("%H:%M:%S", time.localtime(first_visit.get("timestamp", time.time()))),
+            "last_seen": time.strftime("%H:%M:%S", time.localtime(last_visit.get("timestamp", time.time()))),
+            "cameras_visited": len(set(v.get("camera_id") for v in visits)),
+            "visit_count": len(visits),
+            "embedding_preview": [round(float(x), 4) for x in last_visit.get("embedding", [])[:8]]
+        })
+    return {"vehicles": results[-50:]}
+
+@app.post("/api/reid/match_crop")
+def match_reid_crop(query: ReIDQueryRequest):
+    if not shared_reid_engine:
+        return {"status": "error", "message": "ReID engine not initialized"}
+    try:
+        # Decode base64 image
+        img_bytes = base64.b64decode(query.image_base64.split(",")[-1])
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        crop = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if crop is None or crop.size == 0:
+            return {"status": "error", "message": "Invalid image crop"}
+            
+        emb = shared_reid_engine.extract_appearance_embedding(crop)
+        matches = []
+        
+        for key, visits in shared_reid_engine.journey_db.items():
+            for v in visits:
+                sim = shared_reid_engine.calculate_similarity(emb, v['embedding'])
+                if sim >= query.similarity_threshold:
+                    matches.append({
+                        "key": key,
+                        "plate_text": v.get("plate_text"),
+                        "camera_id": v.get("camera_id"),
+                        "vehicle_id": v.get("vehicle_id"),
+                        "timestamp": v.get("timestamp"),
+                        "time_str": time.strftime("%H:%M:%S", time.localtime(v.get("timestamp", time.time()))),
+                        "crop_thumb": v.get("crop_thumb", ""),
+                        "similarity": round(float(sim), 4),
+                        "similarity_percent": round(float(sim) * 100, 1)
+                    })
+                    
+        matches.sort(key=lambda x: x["similarity"], reverse=True)
+        return {
+            "status": "success",
+            "embedding_dim": len(emb),
+            "embedding_sample": [round(float(x), 4) for x in emb[:10]],
+            "matches": matches[:query.top_k]
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.patch("/api/alerts/{alert_id}/acknowledge")
 def acknowledge_alert(alert_id: str):
     conn = get_db()
@@ -765,21 +883,65 @@ def generate_synthetic_frame(camera_id: str, frame_num: int):
 
 @app.websocket("/ws/camera/{camera_id}")
 async def websocket_camera_feed(websocket: WebSocket, camera_id: str):
+    await handle_camera_stream(websocket, camera_id)
+
+CAMERA_FOOTAGE_MAP = {
+    "CAM-001": "traffic_highway.mp4",
+    "CAM_01": "traffic_highway.mp4",
+    "CAM-002": "sample_traffic.mp4",
+    "CAM_02": "sample_traffic.mp4",
+    "CAM-003": "traffic_highway.mp4",
+    "CAM_03": "traffic_highway.mp4",
+    "CAM-004": "traffic_multi.mp4",
+    "CAM_04": "traffic_multi.mp4",
+    "CAM-005": "sample_traffic.mp4",
+    "CAM_05": "sample_traffic.mp4",
+    "CAM-006": "traffic_highway.mp4",
+    "CAM_06": "traffic_highway.mp4",
+    "CAM-007": "sample_traffic.mp4",
+    "CAM_07": "sample_traffic.mp4",
+    "CAM-008": "traffic_highway.mp4",
+    "CAM_08": "traffic_highway.mp4",
+    "CAM-010": "sample_traffic.mp4",
+    "CAM_10": "sample_traffic.mp4",
+    "CAM-011": "traffic_highway.mp4",
+    "CAM_11": "traffic_highway.mp4",
+    "CAM-012": "traffic_multi.mp4",
+    "CAM_12": "traffic_multi.mp4",
+}
+
+async def handle_camera_stream(websocket: WebSocket, camera_id: str):
     await websocket.accept()
-    pipeline = pipelines.get(camera_id)
+    pipeline = pipelines.get(camera_id, SurveillancePipeline(camera_id=camera_id, reid_engine=shared_reid_engine) if ML_AVAILABLE else None)
+    
+    # Pick distinct traffic footage file based on camera ID
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    footage_filename = CAMERA_FOOTAGE_MAP.get(camera_id, "sample_traffic.mp4")
+    video_path = os.path.join(root_dir, footage_filename)
+    
     cap = None
-    if camera_id == "CAM_01":
+    if os.path.exists(video_path):
+        cap = cv2.VideoCapture(video_path)
+        # Offset start frame dynamically per camera ID so videos don't synchronize
+        offset = (abs(hash(camera_id)) * 43) % 250
+        cap.set(cv2.CAP_PROP_POS_FRAMES, offset)
+    elif camera_id == "CAM_01":
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
             cap = None
+
     frame_count = 0
     try:
         while True:
+            frame = None
             if cap and cap.isOpened():
                 ret, frame = cap.read()
                 if not ret:
-                    frame = generate_synthetic_frame(camera_id, frame_count)
-            else:
+                    # Loop video continuously
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    ret, frame = cap.read()
+            
+            if frame is None:
                 frame = generate_synthetic_frame(camera_id, frame_count)
 
             metadata = {"alerts": [], "detections": [], "anpr": []}
@@ -790,29 +952,52 @@ async def websocket_camera_feed(websocket: WebSocket, camera_id: str):
                     pass
 
             frame_count += 1
+            if frame.shape[1] > 640:
+                frame = cv2.resize(frame, (640, int(640 * frame.shape[0] / frame.shape[1])))
             _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
             jpg_b64 = base64.b64encode(buffer).decode('utf-8')
 
             # Persist alerts to DB
             for alert in metadata.get('alerts', []):
-                conn = get_db()
-                aid = f"ALT-{str(uuid.uuid4())[:8].upper()}"
-                now = datetime.utcnow().isoformat()
-                conn.execute("""INSERT OR IGNORE INTO alerts (id,type,severity,subject,camera,plate,message,acknowledged,timestamp,created_at)
-                                VALUES (?,?,?,?,?,?,?,0,?,?)""",
-                             (aid, alert.get('type','DETECTION'), alert.get('severity','info'),
-                              alert.get('plate_text',''), camera_id, alert.get('plate_text',''),
-                              str(alert), datetime.now().strftime("%H:%M:%S"), now))
-                conn.commit()
-                conn.close()
+                try:
+                    conn = get_db()
+                    aid = f"ALT-{str(uuid.uuid4())[:8].upper()}"
+                    now = datetime.utcnow().isoformat()
+                    conn.execute("""INSERT OR IGNORE INTO alerts (id,type,severity,subject,camera,plate,message,acknowledged,timestamp,created_at)
+                                    VALUES (?,?,?,?,?,?,?,0,?,?)""",
+                                 (aid, alert.get('type','DETECTION'), alert.get('severity','info'),
+                                  alert.get('plate_text',''), camera_id, alert.get('plate_text',''),
+                                  str(alert), datetime.now().strftime("%H:%M:%S"), now))
+                    conn.commit()
+                    conn.close()
+                except Exception:
+                    pass
 
-            await websocket.send_text(json.dumps({
+            # Persist ANPR detections to DB
+            for det in metadata.get('detections', []):
+                p_text = det.get('plate_text')
+                if p_text and p_text != 'UNKNOWN':
+                    try:
+                        conn = get_db()
+                        rid = f"ANPR-{str(uuid.uuid4())[:8].upper()}"
+                        now = datetime.utcnow().isoformat()
+                        conn.execute("""INSERT OR IGNORE INTO anpr_reads (id,plate_number,camera_id,confidence,vehicle_type,flagged,status,created_at)
+                                        VALUES (?,?,?,?,?,0,'Verified',?)""",
+                                     (rid, p_text, camera_id, 94.5, det.get('type', 'car'), now))
+                        conn.commit()
+                        conn.close()
+                    except Exception:
+                        pass
+
+            payload = {
                 'camera_id': camera_id,
                 'frame': f"data:image/jpeg;base64,{jpg_b64}",
                 'metadata': metadata,
-                'timestamp': datetime.now().strftime("%H:%M:%S"),
-            }))
-            await asyncio.sleep(0.04)
+                'timestamp': datetime.now().strftime("%H:%M:%S")
+            }
+
+            await websocket.send_text(json.dumps(payload))
+            await asyncio.sleep(0.04) # ~25 FPS smooth stream
     except WebSocketDisconnect:
         print(f"[WS] Client disconnected from {camera_id}")
     finally:

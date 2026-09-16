@@ -1,8 +1,7 @@
-﻿import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCameraFeed } from '../services/websocket';
 import { useApp } from '../context/AppContext';
 import { getVehicles, getAnprReads } from '../services/api';
-import { useEffect } from 'react';
 import type { Vehicle, AnprRead } from '../services/api';
 
 // ΓöÇΓöÇ Event timeline from WebSocket metadata ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
@@ -64,8 +63,8 @@ export default function CameraDetail({ cameraId, onBack }: { cameraId: string; o
   const { cameras } = useApp();
   const cam = cameras.find(c => c.id === cameraId) || cameras[0];
 
-  // Map frontend cam id (CAM-003) to backend WS id (CAM_01) ΓÇö use first two cameras for WebSocket
-  const wsId = cameraId === cameras[0]?.id ? 'CAM_01' : cameraId === cameras[1]?.id ? 'CAM_02' : null;
+  // Map frontend cam id (e.g. CAM-001) to backend WS id
+  const wsId = cam?.id || cameraId || 'CAM-001';
   const { frameUrl, metadata, connected, timestamp } = useCameraFeed(wsId, true);
 
   // Build bbox annotations from WebSocket metadata detections
@@ -84,7 +83,7 @@ export default function CameraDetail({ cameraId, onBack }: { cameraId: string; o
     if (!metadata?.alerts?.length) return;
     const newEntries: EventEntry[] = metadata.alerts.map(a => ({
       time: new Date().toLocaleTimeString('en-IN', { hour12: false }),
-      event: `Alert: ${a.type || 'Watchlist Hit'} ΓÇö ${a.plate_text || ''}`,
+      event: `Alert: ${a.type || 'Watchlist Hit'} — ${a.plate_text || ''}`,
       type: 'alert',
       id: a.plate_text || 'ALT',
     }));
@@ -187,7 +186,7 @@ export default function CameraDetail({ cameraId, onBack }: { cameraId: string; o
                     <rect x="47" y="44" width="6" height="1.5" fill="#0f1a2e" />
                     <rect x="47" y="50" width="6" height="1.5" fill="#0f1a2e" />
                     <text x="50" y="20" textAnchor="middle" fill="#2a3a50" fontSize="4" fontFamily="monospace">
-                      {wsId ? 'CONNECTING...' : 'PREVIEW FEED ΓÇö BACKEND OFFLINE'}
+                      {wsId ? 'CONNECTING...' : 'PREVIEW FEED — BACKEND OFFLINE'}
                     </text>
                   </svg>
                 )}

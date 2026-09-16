@@ -50,15 +50,32 @@ def normalise_vehicle_id(raw_id) -> str:
 
 # ── Main pipeline ────────────────────────────────────────────────────────────
 
+_SHARED_DETECTOR = None
+_SHARED_OCR = None
+
+def get_shared_detector():
+    global _SHARED_DETECTOR
+    if _SHARED_DETECTOR is None:
+        _SHARED_DETECTOR = VehicleDetector()
+    return _SHARED_DETECTOR
+
+def get_shared_ocr():
+    global _SHARED_OCR
+    if _SHARED_OCR is None:
+        _SHARED_OCR = PlateOCREngine()
+    return _SHARED_OCR
+
 class SurveillancePipeline:
     def __init__(self, camera_id="CAM_01", reid_engine=None):
-        self.camera_id      = camera_id
-        self.detector       = VehicleDetector()
-        self.ocr_engine     = PlateOCREngine()
-        self.tracker        = VehicleTracker()
-        self.reid_engine    = reid_engine or CrossCameraReID()
-        self.watchlist      = {"KA01AB1234", "MH12DE5678", "DL03C9999"}
-        self.vehicle_records: dict = {}  # veh_id → {plate, label, conf, is_flagged}
+        self.camera_id = camera_id
+        self.detector = get_shared_detector() if hasattr(globals(), 'get_shared_detector') else VehicleDetector()
+        self.ocr_engine = get_shared_ocr() if hasattr(globals(), 'get_shared_ocr') else PlateOCREngine()
+        self.tracker = VehicleTracker()
+        self.reid_engine = reid_engine or CrossCameraReID()
+        self.watchlist = {"KA01AB1234", "MH12DE5678", "DL03C9999"}
+        self.vehicle_records = {}  # veh_id -> {'plate': str, 'label': str, 'conf': float, 'is_flagged': bool}
+        self.frame_num = 0
+        self.last_detections = []
 
     # ── Fix 2: load from Person-1 detection log ─────────────────────────────
     @staticmethod
@@ -103,8 +120,13 @@ class SurveillancePipeline:
         if frame is None:
             return None, {}
 
-        # Step 1: Detect
-        detections = self.detector.detect_vehicles(frame)
+        self.frame_num += 1
+        # Step 1: Detect vehicles (run detection every 2nd frame for 2x performance boost)
+        if self.frame_num % 2 == 1 or not self.last_detections:
+            detections = self.detector.detect_vehicles(frame)
+            self.last_detections = detections
+        else:
+            detections = self.last_detections
 
         # Step 2: Track (returns {VEH_XXX: [x,y,w,h]})
         tracked_bboxes = self.tracker.update(detections)

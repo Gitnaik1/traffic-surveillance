@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 
 type ViewMode = 'grid' | 'list';
@@ -86,12 +86,46 @@ function CameraCard({ cam, onSelect, showOverlays }: {
   onSelect: () => void;
   showOverlays: boolean;
 }) {
-  const statusInfo = {
+  const [liveFrame, setLiveFrame] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (cam.status === 'offline') return;
+    let ws: WebSocket | null = null;
+    let isMounted = true;
+
+    try {
+      ws = new WebSocket(`ws://localhost:8000/ws/camera/${cam.id}`);
+      ws.onmessage = (event) => {
+        if (!isMounted) return;
+        try {
+          const data = JSON.parse(event.data);
+          if (data && data.frame) {
+            setLiveFrame(data.frame);
+          }
+        } catch (err) {
+          // ignore parsing glitch
+        }
+      };
+      ws.onerror = () => {
+        // fallback gracefully
+      };
+    } catch (e) {
+      // ignore
+    }
+
+    return () => {
+      isMounted = false;
+      if (ws) ws.close();
+    };
+  }, [cam.id, cam.status]);
+
+  const statusConfig: Record<string, { label: string; dotClass: string; textClass: string; borderClass: string }> = {
     online: { label: 'LIVE', dotClass: 'bg-[#22c55e] animate-pulse-green', textClass: 'text-[#4ade80]', borderClass: 'border-[#1a2a40]' },
     offline: { label: 'OFFLINE', dotClass: 'bg-[#ef4444]', textClass: 'text-[#f87171]', borderClass: 'border-[#2a1a1a]' },
     warning: { label: 'WARNING', dotClass: 'bg-[#f59e0b] animate-pulse-amber', textClass: 'text-[#fbbf24]', borderClass: 'border-[#2a2010]' },
     connecting: { label: 'CONNECTING', dotClass: 'bg-[#3b82f6] animate-pulse', textClass: 'text-[#60a5fa]', borderClass: 'border-[#1a2440]' },
-  }[cam.status] ?? { label: 'UNKNOWN', dotClass: 'bg-[#4d607a]', textClass: 'text-[#4d607a]', borderClass: 'border-[#1a2a40]' };
+  };
+  const statusInfo = statusConfig[cam.status] ?? { label: 'UNKNOWN', dotClass: 'bg-[#4d607a]', textClass: 'text-[#4d607a]', borderClass: 'border-[#1a2a40]' };
 
   const trafficBadge: Record<string, string> = {
     high: 'traffic-high', moderate: 'traffic-moderate', low: 'traffic-low', clear: 'traffic-clear',
@@ -107,6 +141,15 @@ function CameraCard({ cam, onSelect, showOverlays }: {
     >
       {/* Video viewport */}
       <div className="camera-feed relative" style={{ aspectRatio: '16/9' }}>
+        {/* Live video frame */}
+        {liveFrame && !isOffline && (
+          <img
+            src={liveFrame}
+            alt={`Live stream ${cam.id}`}
+            className="absolute inset-0 w-full h-full object-cover z-0"
+          />
+        )}
+
         {/* Scanline effect */}
         {!isOffline && (
           <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden opacity-20">
@@ -140,13 +183,13 @@ function CameraCard({ cam, onSelect, showOverlays }: {
           </div>
         )}
 
-        {/* CV Annotations */}
-        {!isOffline && showOverlays && annotations.map((ann, i) => (
+        {/* CV Annotations (only fallback when live AI frame is not streaming) */}
+        {!isOffline && showOverlays && !liveFrame && annotations.map((ann, i) => (
           <CVBox key={i} ann={ann} />
         ))}
 
-        {/* Grid lines (perspective road view) */}
-        {!isOffline && (
+        {/* Grid lines (perspective road view - only fallback when live AI frame is not streaming) */}
+        {!isOffline && !liveFrame && (
           <svg viewBox="0 0 100 60" className="absolute inset-0 w-full h-full opacity-20" preserveAspectRatio="none">
             <line x1="0" y1="60" x2="35" y2="30" stroke="#1a2a40" strokeWidth="0.3" />
             <line x1="100" y1="60" x2="65" y2="30" stroke="#1a2a40" strokeWidth="0.3" />
