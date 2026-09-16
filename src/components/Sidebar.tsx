@@ -14,7 +14,19 @@ import {
   Cpu,
 } from 'lucide-react'
 
-type Page = 'vehicle-intelligence' | 'anpr' | 'trajectories'
+type Page = 
+  | 'dashboard' 
+  | 'live-cameras' 
+  | 'vehicle-intelligence' 
+  | 'anpr' 
+  | 'trajectories' 
+  | 'traffic-analytics' 
+  | 'alerts' 
+  | 'watchlist' 
+  | 'camera-management' 
+  | 'reports' 
+  | 'system-health' 
+  | 'settings'
 
 interface NavItem {
   id: string
@@ -25,18 +37,18 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} />, disabled: true },
-  { id: 'live-cameras', label: 'Live Cameras', icon: <Video size={16} />, disabled: true },
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} />, page: 'dashboard' },
+  { id: 'live-cameras', label: 'Live Cameras', icon: <Video size={16} />, page: 'live-cameras' },
   { id: 'vehicle-intelligence', label: 'Vehicle Intelligence', icon: <Car size={16} />, page: 'vehicle-intelligence' },
   { id: 'anpr', label: 'ANPR', icon: <ScanLine size={16} />, page: 'anpr' },
   { id: 'trajectories', label: 'Trajectories', icon: <Route size={16} />, page: 'trajectories' },
-  { id: 'analytics', label: 'Traffic Analytics', icon: <BarChart3 size={16} />, disabled: true },
-  { id: 'alerts', label: 'Alerts', icon: <Bell size={16} />, disabled: true },
-  { id: 'watchlist', label: 'Watchlist', icon: <BookMarked size={16} />, disabled: true },
-  { id: 'cameras', label: 'Camera Management', icon: <Camera size={16} />, disabled: true },
-  { id: 'reports', label: 'Reports', icon: <FileText size={16} />, disabled: true },
-  { id: 'system-health', label: 'System Health', icon: <Activity size={16} />, disabled: true },
-  { id: 'settings', label: 'Settings', icon: <Settings size={16} />, disabled: true },
+  { id: 'analytics', label: 'Traffic Analytics', icon: <BarChart3 size={16} />, page: 'traffic-analytics' },
+  { id: 'alerts', label: 'Alerts', icon: <Bell size={16} />, page: 'alerts' },
+  { id: 'watchlist', label: 'Watchlist', icon: <BookMarked size={16} />, page: 'watchlist' },
+  { id: 'cameras', label: 'Camera Management', icon: <Camera size={16} />, page: 'camera-management' },
+  { id: 'reports', label: 'Reports', icon: <FileText size={16} />, page: 'reports' },
+  { id: 'system-health', label: 'System Health', icon: <Activity size={16} />, page: 'system-health' },
+  { id: 'settings', label: 'Settings', icon: <Settings size={16} />, page: 'settings' },
 ]
 
 interface Props {
