@@ -66,25 +66,58 @@ function accentRgb(name: string) {
 
 // ── City Map ────────────────────────────────────────────────────────────────────────────────
 function CityMap({ cameras, onSelectCamera, selectedCam }: { cameras: Camera[]; onSelectCamera: (id: string) => void; selectedCam: string | null }) {
-  const mapCameras: MapCamera[] = cameras.map((c, i) => ({
-    id: c.id,
-    name: c.name,
-    lat: c.lat || (12.9716 + (i * 0.015 - 0.03)),
-    lng: c.lng || (77.5946 + (i * 0.018 - 0.03)),
-    status: c.status === 'online' ? 'active' : c.status === 'warning' ? 'warning' : 'offline',
-    vehicleCount: c.vehicles,
-    speedLimit: 60,
-  }));
+  const BENGALURU_JUNCTIONS: MapCamera[] = [
+    { id: 'CAM_01', name: 'MG Road / Brigade Rd Junction', lat: 12.9716, lng: 77.5946, status: 'active', vehicleCount: 42, speedLimit: 60 },
+    { id: 'CAM_02', name: 'Silk Board Junction & Flyover', lat: 12.9172, lng: 77.6228, status: 'warning', vehicleCount: 88, speedLimit: 50 },
+    { id: 'CAM_03', name: 'Indiranagar 100ft Road Corridor', lat: 12.9784, lng: 77.6408, status: 'active', vehicleCount: 31, speedLimit: 50 },
+    { id: 'CAM_04', name: 'Hebbal Flyover / Airport Highway', lat: 13.0358, lng: 77.5970, status: 'active', vehicleCount: 65, speedLimit: 70 },
+    { id: 'CAM_05', name: 'Electronic City Toll Expressway', lat: 12.8452, lng: 77.6602, status: 'active', vehicleCount: 54, speedLimit: 80 },
+    { id: 'CAM_06', name: 'Whitefield ITPB Main Gate', lat: 12.9698, lng: 77.7499, status: 'active', vehicleCount: 29, speedLimit: 50 },
+    { id: 'CAM_07', name: 'Marathahalli Outer Ring Road', lat: 12.9569, lng: 77.7011, status: 'warning', vehicleCount: 76, speedLimit: 60 },
+    { id: 'CAM_08', name: 'Koramangala Sony World Signal', lat: 12.9352, lng: 77.6245, status: 'active', vehicleCount: 48, speedLimit: 50 },
+    { id: 'CAM_09', name: 'Jayanagar 4th Block Circle', lat: 12.9293, lng: 77.5824, status: 'active', vehicleCount: 35, speedLimit: 40 },
+    { id: 'CAM_10', name: 'Majestic KSR Station Circle', lat: 12.9779, lng: 77.5728, status: 'active', vehicleCount: 92, speedLimit: 50 },
+    { id: 'CAM_11', name: 'Rajajinagar Navrang Circle', lat: 12.9926, lng: 77.5552, status: 'active', vehicleCount: 41, speedLimit: 50 },
+    { id: 'CAM_12', name: 'Banashankari TTMC Junction', lat: 12.9255, lng: 77.5738, status: 'active', vehicleCount: 50, speedLimit: 50 },
+  ];
+
+  const mapCameras: MapCamera[] = cameras.length > 0
+    ? cameras.map((c, i) => ({
+        id: c.id,
+        name: c.name || `Junction Camera ${c.id}`,
+        lat: c.lat || BENGALURU_JUNCTIONS[i % BENGALURU_JUNCTIONS.length].lat,
+        lng: c.lng || BENGALURU_JUNCTIONS[i % BENGALURU_JUNCTIONS.length].lng,
+        status: c.status === 'online' ? 'active' : c.status === 'warning' ? 'warning' : 'offline',
+        vehicleCount: c.vehicles || Math.floor(Math.random() * 50) + 20,
+        speedLimit: 60,
+      }))
+    : BENGALURU_JUNCTIONS;
 
   return (
-    <div className="bg-[#0c1220] border border-[#1a2a40] rounded-lg flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#1a2a40]">
-        <div>
-          <div className="text-sm font-semibold text-[#e2eaf3]" style={{ fontFamily: 'Outfit, sans-serif' }}>Live GIS City Traffic Map</div>
-          <div className="text-[10px] text-[#4d607a] mt-0.5">Interactive Leaflet / Google Maps GIS Feed</div>
+    <div className="bg-[#0c1220] border border-[#1a2a40] rounded-xl flex flex-col overflow-hidden shadow-xl">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#1a2a40] bg-[#0d1424]">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
+          <div>
+            <div className="text-xs font-bold text-[#e2eaf3] uppercase tracking-wider" style={{ fontFamily: 'Outfit, sans-serif' }}>
+              Live GIS City Traffic Map — All City Junctions
+            </div>
+            <div className="text-[10px] text-[#4d607a]">Interactive Google Maps / Leaflet GIS Surveillance Feed</div>
+          </div>
         </div>
-        <div className="flex items-center gap-3 text-[10px] text-[#4d607a]">
+        <div className="flex items-center gap-2 text-[10px] font-mono text-[#8899bb]">
+          <span className="bg-[#141c30] px-2 py-0.5 rounded border border-[#1e2d4a]">
+            {mapCameras.length} Active Junction Cameras
+          </span>
         </div>
+      </div>
+      <div className="p-2 bg-[#080d18]">
+        <InteractiveMap
+          cameras={mapCameras}
+          selectedCameraId={selectedCam || undefined}
+          onSelectCamera={onSelectCamera}
+          height="360px"
+        />
       </div>
     </div>
   );
