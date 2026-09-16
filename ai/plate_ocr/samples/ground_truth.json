@@ -1,0 +1,5 @@
+[
+  {"filename": "vehicle_01.jpg", "true_plate": "MH12AB3456", "difficulty": "clear"},
+  {"filename": "vehicle_02.jpg", "true_plate": "DL7CCD9087", "difficulty": "blurry"},
+  {"filename": "vehicle_03.jpg", "true_plate": "KA05MN7821", "difficulty": "angled"}
+]

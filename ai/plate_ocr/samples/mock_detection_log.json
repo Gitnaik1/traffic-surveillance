@@ -1,0 +1,8 @@
+[
+  {"camera_id": "CAM-001", "vehicle_id": 17, "class": "car",
+   "bbox": [120, 200, 480, 460], "confidence": 0.93,
+   "frame_number": 30, "timestamp": "2026-09-16T10:21:14"},
+  {"camera_id": "CAM-001", "vehicle_id": 18, "class": "motorcycle",
+   "bbox": [500, 250, 620, 420], "confidence": 0.88,
+   "frame_number": 45, "timestamp": "2026-09-16T10:21:16"}
+]
