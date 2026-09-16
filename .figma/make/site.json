@@ -1,0 +1,10 @@
+{
+  "description": "Streamline your fitness journey with personalized workout plans, progress tracking, and community support for all fitness levels.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
