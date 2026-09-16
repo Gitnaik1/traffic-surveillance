@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 import cv2
 import json
 import time
@@ -844,5 +844,10 @@ a{color:#60a5fa;}h1{color:#60a5fa;}</style></head>
 <li><a href="/api/settings">/api/settings</a></li>
 <li><a href="/api/trajectories">/api/trajectories</a></li>
 <li><a href="/api/reports/summary">/api/reports/summary</a></li>
-<li><a href="/docs">/docs ΓÇö Swagger UI</a></li>
+<li><a href="/docs">/docs — Swagger UI</a></li>
 </ul></body></html>"""
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000)

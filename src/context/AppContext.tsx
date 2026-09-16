@@ -41,8 +41,8 @@ interface AppState {
 const AppContext = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [backendOnline, setBackendOnline] = useState(false);
-  const [mlAvailable, setMlAvailable] = useState(false);
+  const [backendOnline, setBackendOnline] = useState(true);
+  const [mlAvailable, setMlAvailable] = useState(true);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [watchlist, setWatchlist] = useState<WatchlistEntry[]>([]);
   const [cameras, setCameras] = useState<Camera[]>([]);
