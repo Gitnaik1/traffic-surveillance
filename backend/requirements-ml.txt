@@ -10,8 +10,10 @@ opencv-contrib-python>=4.10.0   # Full OpenCV with CLAHE, SIFT, etc.
 numpy>=1.24.0
 scipy>=1.11.0                   # VehicleTracker centroid matching
 
-# YOLO vehicle detection (Person 1 + Person 2)
+# YOLO vehicle detection & ByteTrack tracking (Person 1 + Person 2)
 ultralytics>=8.0.0
+supervision>=0.21.0
+
 
 # License-plate OCR (Person 2)
 easyocr>=1.7.0

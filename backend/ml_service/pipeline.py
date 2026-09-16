@@ -1,147 +1,159 @@
 """
-ml_service/pipeline.py — Fixed for UrbanTrax backend integration.
-
-Fixes applied vs. Person-2's original ml-service/pipeline.py:
-  1. Camera IDs normalised to "CAM-001" format (hyphen style).
-  2. Alert field renamed: plate_text → plate_number (matches AlertCreate schema).
-  3. Watchlist is now a mutable set injected from the REST layer — call
-     `pipeline.sync_watchlist(plates_iterable)` to update it at runtime.
-  4. Imports updated to use ml_service package (not ml_service top-level).
+pipeline.py — Unified surveillance pipeline (Fix 2)
+----------------------------------------------------
+Changes vs. original:
+  • Standardised vehicle_id format: VEH_XXX (Person-2 style) everywhere
+  • Added xyxy_to_xywh() helper so Person-1 log files can be loaded safely
+  • Added load_from_detection_log() to ingest Person-1 JSON logs
+  • Re-ID and OCR layers unchanged
 """
-
 import cv2
+import json
 import time
 import numpy as np
-from ml_service.detection import VehicleDetector
-from ml_service.ocr import PlateOCREngine
-from ml_service.tracker import VehicleTracker
-from ml_service.reid import CrossCameraReID
 
+from ml_service.detection import VehicleDetector
+from ml_service.ocr       import PlateOCREngine
+from ml_service.tracker   import VehicleTracker
+from ml_service.reid      import CrossCameraReID
+
+# ── Fix 2: bbox format converters ───────────────────────────────────────────
+
+def xyxy_to_xywh(bbox: list) -> list:
+    """Convert Person-1 xyxy [x1,y1,x2,y2] → xywh [x,y,w,h]."""
+    x1, y1, x2, y2 = bbox
+    return [int(x1), int(y1), int(x2 - x1), int(y2 - y1)]
+
+def xywh_to_xyxy(bbox: list) -> list:
+    """Convert Person-2 xywh [x,y,w,h] → xyxy [x1,y1,x2,y2]."""
+    x, y, w, h = bbox
+    return [int(x), int(y), int(x + w), int(y + h)]
+
+# ── Fix 5: unified vehicle_id normaliser ────────────────────────────────────
+# Person-1 → int 47  |  Person-2 → "VEH_047"  |  Backend → "UTX-VH-00124"
+# All three are normalised to VEH_XXX here.
+
+def normalise_vehicle_id(raw_id) -> str:
+    """Return a canonical VEH_XXX string from any of the three id formats."""
+    if isinstance(raw_id, int):
+        return f"VEH_{raw_id:03d}"
+    s = str(raw_id).strip()
+    if s.startswith("VEH_"):
+        return s
+    if s.startswith("UTX-VH-"):
+        number = int(s.split("-")[-1])
+        return f"VEH_{number:03d}"
+    # last-resort: extract trailing digits
+    digits = "".join(c for c in s if c.isdigit())
+    return f"VEH_{int(digits or 0):03d}"
+
+
+# ── Main pipeline ────────────────────────────────────────────────────────────
 
 class SurveillancePipeline:
-    def __init__(self, camera_id: str = "CAM-001", reid_engine=None,
-                 initial_watchlist: set = None):
+    def __init__(self, camera_id="CAM_01", reid_engine=None):
+        self.camera_id      = camera_id
+        self.detector       = VehicleDetector()
+        self.ocr_engine     = PlateOCREngine()
+        self.tracker        = VehicleTracker()
+        self.reid_engine    = reid_engine or CrossCameraReID()
+        self.watchlist      = {"KA01AB1234", "MH12DE5678", "DL03C9999"}
+        self.vehicle_records: dict = {}  # veh_id → {plate, label, conf, is_flagged}
+
+    # ── Fix 2: load from Person-1 detection log ─────────────────────────────
+    @staticmethod
+    def load_from_detection_log(log_path: str) -> list[dict]:
         """
-        Args:
-            camera_id: Must match the camera IDs used in the REST API
-                       (e.g. "CAM-001", "CAM-002", "CAM-003").
-            reid_engine: Shared CrossCameraReID instance across cameras.
-            initial_watchlist: Seed watchlist plates (set of plate strings).
+        Load detections from a Person-1 JSON log file.
+        Person-1 writes bboxes as xyxy — this converts them to xywh so they
+        can be fed into the Person-2 style tracker / pipeline without corruption.
+
+        Returns a list of detection dicts compatible with VehicleTracker.update().
         """
-        self.camera_id = camera_id
-        self.detector = VehicleDetector()
-        self.ocr_engine = PlateOCREngine()
-        self.tracker = VehicleTracker()
-        self.reid_engine = reid_engine or CrossCameraReID()
+        with open(log_path) as f:
+            records = json.load(f)
 
-        # Watchlist is a mutable set — updated at runtime via sync_watchlist()
-        self.watchlist: set = set(initial_watchlist) if initial_watchlist else set()
+        detections = []
+        for rec in records:
+            raw_bbox = rec.get("bbox", [])
+            if len(raw_bbox) != 4:
+                continue
+            # Detect format: if x2 > x+w it's likely xyxy
+            x1, y1, x2, y2 = raw_bbox
+            if x2 > x1 and y2 > y1 and (x2 - x1) < 5000 and (y2 - y1) < 5000:
+                bbox = xyxy_to_xywh(raw_bbox)   # Person-1 xyxy → xywh
+            else:
+                bbox = raw_bbox                  # already xywh
 
-        # Per-vehicle record cache: veh_id -> dict
-        self.vehicle_records: dict = {}
+            detections.append({
+                "bbox":     bbox,
+                "label":    rec.get("label", "vehicle"),
+                "conf":     float(rec.get("confidence", rec.get("conf", 0.5))),
+                "vehicle_id": normalise_vehicle_id(rec.get("vehicle_id", 0)),
+            })
 
-    # ------------------------------------------------------------------
-    # Public API used by the REST layer
-    # ------------------------------------------------------------------
+        return detections
 
-    def sync_watchlist(self, plates_iterable):
-        """Replace the in-memory watchlist with the supplied plate strings."""
-        self.watchlist = set(str(p).strip().upper() for p in plates_iterable)
-
-    def add_to_watchlist(self, plate: str):
-        """Add a single plate to the watchlist without a full reload."""
-        self.watchlist.add(plate.strip().upper())
-
-    def remove_from_watchlist(self, plate: str):
-        """Remove a single plate from the watchlist."""
-        self.watchlist.discard(plate.strip().upper())
-
-    # ------------------------------------------------------------------
-    # Core frame processing
-    # ------------------------------------------------------------------
-
+    # ── Core frame processing ────────────────────────────────────────────────
     def process_frame(self, frame):
         """
-        Process a single video frame.
-
-        Returns:
-            processed_frame (np.ndarray): Frame with bounding-box overlays.
-            metadata (dict): Structured data for the WebSocket payload.
-                Keys: camera_id, timestamp, vehicle_count, detections, alerts.
-
-        Alert dict shape (compatible with AlertCreate schema):
-            {
-                "type": str,           # "blacklisted_vehicle" | "cross_camera_match"
-                "severity": str,       # "critical" | "warning"
-                "camera_id": str,      # e.g. "CAM-001"
-                "vehicle_id": str,
-                "plate_number": str,   # ← renamed from plate_text
-                "timestamp": str,
-            }
+        Process single video frame.
+        Returns: (processed_frame, frame_metadata)
         """
         if frame is None:
             return None, {}
 
-        # Step 1: Detect vehicles
+        # Step 1: Detect
         detections = self.detector.detect_vehicles(frame)
 
-        # Step 2: Track vehicles across frames
+        # Step 2: Track (returns {VEH_XXX: [x,y,w,h]})
         tracked_bboxes = self.tracker.update(detections)
 
-        alerts = []
+        alerts           = []
         frame_detections = []
 
-        # Step 3: OCR & Re-ID per tracked vehicle
-        for veh_id, bbox in tracked_bboxes.items():
+        # Step 3: OCR + Re-ID
+        for raw_id, bbox in tracked_bboxes.items():
+            veh_id = normalise_vehicle_id(raw_id)
             x, y, w, h = bbox
-            vehicle_crop = frame[
-                max(0, y):min(frame.shape[0], y + h),
-                max(0, x):min(frame.shape[1], x + w),
-            ]
+            vehicle_crop = frame[max(0, y):min(frame.shape[0], y+h),
+                                 max(0, x):min(frame.shape[1], x+w)]
 
             if veh_id not in self.vehicle_records:
                 plate_crop, _ = self.detector.crop_plate_region(frame, bbox)
-                plate_number, conf, is_valid = self.ocr_engine.read_plate(plate_crop)
+                plate_text, conf, is_valid = self.ocr_engine.read_plate(plate_crop)
+                is_flagged = plate_text in self.watchlist
 
-                is_flagged = plate_number in self.watchlist
                 self.vehicle_records[veh_id] = {
-                    "plate_number": plate_number,   # ← unified field name
-                    "label": "vehicle",
-                    "conf": conf,
+                    "plate":      plate_text,
+                    "label":      "vehicle",
+                    "conf":       conf,
                     "is_flagged": is_flagged,
                 }
 
-                # Cross-camera Re-ID
                 reid_match = self.reid_engine.register_detection(
-                    self.camera_id, veh_id, plate_number, vehicle_crop
+                    self.camera_id, veh_id, plate_text, vehicle_crop
                 )
 
                 if is_flagged:
                     alerts.append({
-                        "type": "blacklisted_vehicle",          # lowercase, matches mock_data
-                        "severity": "critical",
-                        "camera_id": self.camera_id,
+                        "type":       "BLACK_LISTED_VEHICLE",
+                        "camera_id":  self.camera_id,
                         "vehicle_id": veh_id,
-                        "plate_number": plate_number,           # ← fixed field name
-                        "timestamp": time.strftime("%H:%M:%S"),
+                        "plate_text": plate_text,
+                        "timestamp":  time.strftime("%H:%M:%S"),
                     })
-
                 if reid_match:
                     alerts.append({
-                        "type": "cross_camera_match",
-                        "severity": "warning",
-                        "camera_id": self.camera_id,
-                        "vehicle_id": veh_id,
-                        "plate_number": reid_match.get("plate_text", plate_number),
+                        "type":      "CROSS_CAMERA_MATCH",
+                        "details":   reid_match,
                         "timestamp": time.strftime("%H:%M:%S"),
-                        "details": reid_match,
                     })
 
-            rec = self.vehicle_records[veh_id]
-            plate_display = rec["plate_number"]
-            is_flagged = rec["is_flagged"]
+            rec           = self.vehicle_records[veh_id]
+            plate_display = rec["plate"]
+            is_flagged    = rec["is_flagged"]
 
-            # Visualisation
             color = (0, 0, 255) if is_flagged else (0, 255, 0)
             cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
 
@@ -150,37 +162,29 @@ class SurveillancePipeline:
                 label_str += " [FLAGGED!]"
 
             cv2.rectangle(frame, (x, y - 25), (x + len(label_str) * 11, y), color, -1)
-            cv2.putText(
-                frame, label_str, (x + 5, y - 7),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1,
-            )
+            cv2.putText(frame, label_str, (x + 5, y - 7),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
             frame_detections.append({
-                "vehicle_id": veh_id,
-                "bbox": list(bbox),
-                "plate_number": plate_display,   # ← unified field name
+                "vehicle_id": veh_id,        # always VEH_XXX (Fix 5)
+                "bbox":       list(bbox),    # always xywh  (Fix 2)
+                "plate_text": plate_display,
                 "is_flagged": is_flagged,
             })
 
-        # Header overlay
         total_count = len(tracked_bboxes)
         cv2.rectangle(frame, (0, 0), (frame.shape[1], 35), (20, 20, 20), -1)
-        header_str = (
-            f"Camera: {self.camera_id} | "
-            f"Vehicles: {total_count} | "
-            f"Alerts: {len(alerts)}"
-        )
-        cv2.putText(
-            frame, header_str, (15, 22),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2,
-        )
+        header_str = (f"Camera: {self.camera_id} | "
+                      f"Vehicles: {total_count} | Alerts: {len(alerts)}")
+        cv2.putText(frame, header_str, (15, 22),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
         metadata = {
-            "camera_id": self.camera_id,
-            "timestamp": time.time(),
+            "camera_id":     self.camera_id,
+            "timestamp":     time.time(),
             "vehicle_count": total_count,
-            "detections": frame_detections,
-            "alerts": alerts,
+            "detections":    frame_detections,
+            "alerts":        alerts,
         }
 
         return frame, metadata

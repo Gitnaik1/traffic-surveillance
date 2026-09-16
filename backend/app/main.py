@@ -6,7 +6,17 @@ from .routers import cameras, vehicles, anpr, alerts, watchlist, analytics
 from .routers.camera_ws import router as camera_ws_router
 from .websocket import manager, fake_event_pusher
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(title="UrbanTrax AI Backend")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 Base.metadata.create_all(bind=engine)
 
