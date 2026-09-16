@@ -297,7 +297,20 @@ export const acknowledgeAlert = (id: string) =>
 export const acknowledgeAllAlerts = () =>
   apiFetch<{ status: string }>('/api/alerts/acknowledge-all', { method: 'PATCH' }, { status: 'acknowledged' });
 
-// ─────────────────────────── Vehicles ─────────────────────────────────────
+const MOCK_VEHICLES_LIST: Vehicle[] = [
+  { id: 'V001', vehicle_id: 'UTX-VH-00124', type: 'SUV', plate: 'KA01AB1234', confidence: 94.6, track_status: 'Tracked', camera: 'CAM_01', flagged: 1, speed: 64, direction: 'Northbound', timestamp: '10:47:22', created_at: new Date().toISOString() },
+  { id: 'V002', vehicle_id: 'UTX-VH-00125', type: 'Sedan', plate: 'MH12CD5678', confidence: 88.2, track_status: 'Tracked', camera: 'CAM_02', flagged: 1, speed: 94, direction: 'Southbound', timestamp: '10:51:09', created_at: new Date().toISOString() },
+  { id: 'V003', vehicle_id: 'UTX-VH-00126', type: 'Motorcycle', plate: 'DL3CXY9010', confidence: 71.4, track_status: 'Exited', camera: 'CAM_03', flagged: 0, speed: 45, direction: 'Eastbound', timestamp: '10:33:11', created_at: new Date().toISOString() },
+  { id: 'V004', vehicle_id: 'UTX-VH-00127', type: 'Bus', plate: 'TN09EF3456', confidence: 97.1, track_status: 'Tracked', camera: 'CAM_04', flagged: 0, speed: 38, direction: 'Westbound', timestamp: '10:42:55', created_at: new Date().toISOString() },
+  { id: 'V005', vehicle_id: 'UTX-VH-00128', type: 'Truck', plate: 'KA03GH7890', confidence: 82.9, track_status: 'Lost', camera: 'CAM_01', flagged: 1, speed: 52, direction: 'Northbound', timestamp: '10:28:44', created_at: new Date().toISOString() },
+  { id: 'V006', vehicle_id: 'UTX-VH-00129', type: 'Auto', plate: 'AP39IJ1122', confidence: 66.3, track_status: 'Tracked', camera: 'CAM_05', flagged: 0, speed: 30, direction: 'Southbound', timestamp: '10:55:30', created_at: new Date().toISOString() },
+  { id: 'V007', vehicle_id: 'UTX-VH-00130', type: 'Car', plate: 'GJ05KL3344', confidence: 91.0, track_status: 'Tracked', camera: 'CAM_03', flagged: 0, speed: 55, direction: 'Eastbound', timestamp: '10:44:19', created_at: new Date().toISOString() },
+  { id: 'V008', vehicle_id: 'UTX-VH-00131', type: 'SUV', plate: 'RJ14MN5566', confidence: 79.5, track_status: 'Tracked', camera: 'CAM_06', flagged: 1, speed: 60, direction: 'Northbound', timestamp: '10:59:01', created_at: new Date().toISOString() },
+  { id: 'V009', vehicle_id: 'UTX-VH-00132', type: 'Sedan', plate: 'WB01PQ7788', confidence: 85.7, track_status: 'Exited', camera: 'CAM_05', flagged: 0, speed: 48, direction: 'Southbound', timestamp: '10:15:38', created_at: new Date().toISOString() },
+  { id: 'V010', vehicle_id: 'UTX-VH-00133', type: 'Motorcycle', plate: 'TS07RS9900', confidence: 58.1, track_status: 'Tracked', camera: 'CAM_02', flagged: 0, speed: 72, direction: 'Southbound', timestamp: '10:58:22', created_at: new Date().toISOString() },
+  { id: 'V011', vehicle_id: 'UTX-VH-00134', type: 'Car', plate: 'KL08TU1234', confidence: 93.3, track_status: 'Tracked', camera: 'CAM_04', flagged: 0, speed: 50, direction: 'Westbound', timestamp: '10:49:55', created_at: new Date().toISOString() },
+  { id: 'V012', vehicle_id: 'UTX-VH-00135', type: 'Truck', plate: 'HR26VW5678', confidence: 96.8, track_status: 'Lost', camera: 'CAM_01', flagged: 1, speed: 42, direction: 'Northbound', timestamp: '10:07:44', created_at: new Date().toISOString() },
+];
 
 export const getVehicles = (params?: { limit?: number; camera?: string; flagged?: boolean }) => {
   const qs = new URLSearchParams();
@@ -305,10 +318,7 @@ export const getVehicles = (params?: { limit?: number; camera?: string; flagged?
   if (params?.camera) qs.set('camera', params.camera);
   if (params?.flagged !== undefined) qs.set('flagged', String(params.flagged));
   return apiFetch<{ vehicles: Vehicle[] }>(`/api/vehicles${qs.toString() ? `?${qs}` : ''}`, undefined, {
-    vehicles: [
-      { id: 'V001', vehicle_id: 'UTX-VH-00124', type: 'SUV', plate: 'KA01AB1234', confidence: 0.98, track_status: 'Tracked', camera: 'CAM_01', flagged: 1, speed: 64, direction: 'Northbound', timestamp: new Date().toISOString(), created_at: new Date().toISOString() },
-      { id: 'V002', vehicle_id: 'UTX-VH-00125', type: 'Motorcycle', plate: 'TN09CD5678', confidence: 0.95, track_status: 'Tracked', camera: 'CAM_02', flagged: 1, speed: 94, direction: 'Southbound', timestamp: new Date().toISOString(), created_at: new Date().toISOString() },
-    ],
+    vehicles: MOCK_VEHICLES_LIST,
   });
 };
 

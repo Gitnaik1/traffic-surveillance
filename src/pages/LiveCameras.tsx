@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import CameraDetail from './CameraDetail';
 
 type ViewMode = 'grid' | 'list';
 type StatusFilter = 'all' | 'online' | 'offline' | 'warning';
@@ -296,14 +297,45 @@ function CameraRow({ cam, onSelect }: { cam: any; onSelect: () => void }) {
 }
 
 // ΓöÇΓöÇ Main Live Cameras ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-export default function LiveCameras({ onSelectCamera }: { onSelectCamera: (id: string) => void }) {
+interface LiveCamerasProps {
+  onSelectCamera?: (id: string) => void;
+  selectedCameraId?: string | null;
+  onClearSelectedCamera?: () => void;
+}
+
+export default function LiveCameras({
+  onSelectCamera,
+  selectedCameraId: externalSelectedId = null,
+  onClearSelectedCamera,
+}: LiveCamerasProps) {
   const { cameras, backendOnline, camerasLoading } = useApp();
+  const [selectedCamId, setSelectedCamId] = useState<string | null>(externalSelectedId);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [trafficFilter, setTrafficFilter] = useState<TrafficFilter>('all');
   const [search, setSearch] = useState('');
   const [showOverlays, setShowOverlays] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
+
+  useEffect(() => {
+    if (externalSelectedId !== undefined) {
+      setSelectedCamId(externalSelectedId);
+    }
+  }, [externalSelectedId]);
+
+  const handleSelectCamera = (id: string) => {
+    setSelectedCamId(id);
+    if (onSelectCamera) onSelectCamera(id);
+  };
+
+  const handleBack = () => {
+    setSelectedCamId(null);
+    if (onClearSelectedCamera) onClearSelectedCamera();
+  };
+
+  if (selectedCamId) {
+    return <CameraDetail cameraId={selectedCamId} onBack={handleBack} />;
+  }
 
   const filtered = cameras.filter(c => {
     if (statusFilter !== 'all' && c.status !== statusFilter) return false;
@@ -453,7 +485,7 @@ export default function LiveCameras({ onSelectCamera }: { onSelectCamera: (id: s
             {viewMode === 'grid' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filtered.map(cam => (
-                  <CameraCard key={cam.id} cam={cam} showOverlays={showOverlays} onSelect={() => onSelectCamera(cam.id)} />
+                  <CameraCard key={cam.id} cam={cam} showOverlays={showOverlays} onSelect={() => handleSelectCamera(cam.id)} />
                 ))}
                 {filtered.length === 0 && (
                   <div className="col-span-full flex flex-col items-center justify-center py-16 text-[#4d607a]">
@@ -481,7 +513,7 @@ export default function LiveCameras({ onSelectCamera }: { onSelectCamera: (id: s
                   </thead>
                   <tbody>
                     {filtered.map(cam => (
-                      <CameraRow key={cam.id} cam={cam} onSelect={() => onSelectCamera(cam.id)} />
+                      <CameraRow key={cam.id} cam={cam} onSelect={() => handleSelectCamera(cam.id)} />
                     ))}
                   </tbody>
                 </table>
