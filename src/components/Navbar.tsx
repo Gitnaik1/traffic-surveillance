@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, Bell, CheckCircle, User, Menu } from 'lucide-react'
 
 interface Props {
@@ -10,6 +10,9 @@ interface Props {
 }
 
 export default function Navbar({ title, subtitle, onMenuClick, backendOnline = false, alertCount = 0 }: Props) {
+}
+
+export default function Navbar({ title, subtitle, onMenuClick }: Props) {
   const [time, setTime] = useState(new Date())
 
   useEffect(() => {
@@ -67,6 +70,10 @@ export default function Navbar({ title, subtitle, onMenuClick, backendOnline = f
             <span className="text-xs font-medium" style={{ color: '#f87171' }}>Backend Offline</span>
           </>
         )}
+        <CheckCircle size={12} color="#22c55e" />
+        <span className="text-xs font-medium" style={{ color: '#22c55e' }}>
+          All Systems Online
+        </span>
       </div>
 
       {/* Divider */}
