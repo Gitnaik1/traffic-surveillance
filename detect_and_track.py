@@ -25,8 +25,9 @@ VEHICLE_CLASS_IDS = {2: "car", 3: "motorcycle", 5: "bus", 7: "truck"}
 
 
 def run_detection_and_tracking(input_path: str, camera_id: str, output_dir: str,
-                                model_weights: str = "yolov8n.pt",
-                                conf_threshold: float = 0.35):
+                                model_weights: str = "yolov8s.pt",
+                                conf_threshold: float = 0.25,
+                                img_size: int = 640):
     os.makedirs(output_dir, exist_ok=True)
     annotated_video_path = os.path.join(output_dir, "annotated_output.mp4")
     log_path = os.path.join(output_dir, "detections_log.json")
@@ -67,7 +68,7 @@ def run_detection_and_tracking(input_path: str, camera_id: str, output_dir: str,
             break
 
         # Run YOLOv8 inference on this frame
-        results = model(frame, verbose=False)[0]
+        results = model(frame, imgsz=img_size, verbose=False)[0]
         detections = sv.Detections.from_ultralytics(results)
 
         # Keep only vehicle classes above the confidence threshold
@@ -134,6 +135,7 @@ if __name__ == "__main__":
     parser.add_argument("--camera_id", default="CAM-001", help="Camera identifier for this video")
     parser.add_argument("--output_dir", default="outputs", help="Directory to save outputs")
     parser.add_argument("--conf", type=float, default=0.35, help="Confidence threshold")
+    parser.add_argument("--img_size", type=int, default=640, help="Inference image size")
     args = parser.parse_args()
 
     run_detection_and_tracking(
@@ -141,4 +143,5 @@ if __name__ == "__main__":
         camera_id=args.camera_id,
         output_dir=args.output_dir,
         conf_threshold=args.conf,
+        img_size=args.img_size,
     )
