@@ -1,0 +1,11 @@
+# UrbanTrax Backend — Core REST + WebSocket requirements
+# Install with: pip install -r requirements.txt
+# This file contains ONLY the lightweight API server dependencies.
+# For full AI/ML functionality install requirements-ml.txt as well.
+
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
+pydantic>=2.0
+websockets>=11.0
+sqlalchemy>=2.0.0
+python-dotenv>=1.0.0
