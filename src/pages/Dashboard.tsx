@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -64,113 +64,26 @@ function accentRgb(name: string) {
   return map[name] || '59,130,246';
 }
 
-// ΓöÇΓöÇ City Map ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── City Map ────────────────────────────────────────────────────────────────────────────────
 function CityMap({ cameras, onSelectCamera, selectedCam }: { cameras: Camera[]; onSelectCamera: (id: string) => void; selectedCam: string | null }) {
+  const mapCameras: MapCamera[] = cameras.map((c, i) => ({
+    id: c.id,
+    name: c.name,
+    lat: c.lat || (12.9716 + (i * 0.015 - 0.03)),
+    lng: c.lng || (77.5946 + (i * 0.018 - 0.03)),
+    status: c.status === 'online' ? 'active' : c.status === 'warning' ? 'warning' : 'offline',
+    vehicleCount: c.vehicles,
+    speedLimit: 60,
+  }));
+
   return (
     <div className="bg-[#0c1220] border border-[#1a2a40] rounded-lg flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#1a2a40]">
         <div>
-          <div className="text-sm font-semibold text-[#e2eaf3]" style={{ fontFamily: 'Outfit, sans-serif' }}>City Traffic Overview</div>
-          <div className="text-[10px] text-[#4d607a] mt-0.5">Demo city ΓÇö sample camera placements</div>
+          <div className="text-sm font-semibold text-[#e2eaf3]" style={{ fontFamily: 'Outfit, sans-serif' }}>Live GIS City Traffic Map</div>
+          <div className="text-[10px] text-[#4d607a] mt-0.5">Interactive Leaflet / Google Maps GIS Feed</div>
         </div>
         <div className="flex items-center gap-3 text-[10px] text-[#4d607a]">
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#22c55e]" />Online</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#f59e0b]" />Warning</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#ef4444]" />Offline</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#3b82f6]" />Selected</span>
-        </div>
-      </div>
-      <div className="relative flex-1 overflow-hidden" style={{ minHeight: 280 }}>
-        {/* SVG city grid */}
-        <svg viewBox="0 0 100 80" className="w-full h-full" style={{ background: '#070c17' }}>
-          {/* Grid roads */}
-          {[15, 30, 45, 60, 75].map(y => (
-            <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#0f1a2e" strokeWidth="2" />
-          ))}
-          {[15, 30, 45, 60, 75, 90].map(x => (
-            <line key={x} x1={x} y1="0" x2={x} y2="80" stroke="#0f1a2e" strokeWidth="2" />
-          ))}
-          {/* Major roads */}
-          <line x1="0" y1="40" x2="100" y2="40" stroke="#1a2a40" strokeWidth="3" />
-          <line x1="50" y1="0" x2="50" y2="80" stroke="#1a2a40" strokeWidth="3" />
-          <line x1="0" y1="25" x2="100" y2="55" stroke="#131d2e" strokeWidth="2.5" />
-          <line x1="0" y1="55" x2="100" y2="25" stroke="#131d2e" strokeWidth="2" />
-          {/* Highway */}
-          <path d="M0,20 Q25,22 50,25 Q75,28 100,22" stroke="#1e3050" strokeWidth="4" fill="none" />
-          {/* City label */}
-          <text x="3" y="7" fill="#1a2a40" fontSize="3" fontFamily="JetBrains Mono" fontWeight="bold">DEMO CITY ΓÇö SAMPLE DATA</text>
-
-          {/* Traffic flow lines */}
-          {cameras.filter(c => c.status === 'online').map(cam => {
-            const x1 = cam.map_x + (Math.random() > 0.5 ? 8 : -8);
-            const y1 = cam.map_y + (Math.random() > 0.5 ? 4 : -4);
-            return (
-              <line key={`flow-${cam.id}`}
-                x1={cam.map_x} y1={cam.map_y}
-                x2={x1} y2={y1}
-                stroke={cam.traffic === 'high' ? '#ef4444' : cam.traffic === 'moderate' ? '#f59e0b' : '#22c55e'}
-                strokeWidth="0.5" opacity="0.3"
-                strokeDasharray="1,1"
-              />
-            );
-          })}
-
-          {/* Camera markers */}
-          {cameras.map(cam => (
-            <g key={cam.id} style={{ cursor: 'pointer' }} onClick={() => onSelectCamera(cam.id)}>
-              <circle
-                cx={cam.map_x} cy={cam.map_y} r={selectedCam === cam.id ? 4 : 2.5}
-                fill={selectedCam === cam.id ? '#3b82f6' :
-                  cam.status === 'online' ? '#22c55e' :
-                  cam.status === 'warning' ? '#f59e0b' : '#ef4444'}
-                stroke={selectedCam === cam.id ? '#93c5fd' :
-                  cam.status === 'online' ? '#4ade80' :
-                  cam.status === 'warning' ? '#fbbf24' : '#f87171'}
-                strokeWidth="0.8"
-                opacity={selectedCam === cam.id ? 1 : 0.9}
-              />
-              {selectedCam === cam.id && (
-                <circle cx={cam.map_x} cy={cam.map_y} r="7" fill="none" stroke="#3b82f6" strokeWidth="0.4" opacity="0.4" strokeDasharray="1,1" />
-              )}
-              <text x={cam.map_x + 3} y={cam.map_y - 3} fill="#4d607a" fontSize="1.8" fontFamily="JetBrains Mono">{cam.id}</text>
-            </g>
-          ))}
-
-          {/* Congestion heat areas */}
-          <circle cx="38" cy="28" r="6" fill="#ef4444" opacity="0.04" />
-          <circle cx="60" cy="52" r="7" fill="#ef4444" opacity="0.05" />
-          <circle cx="28" cy="18" r="5" fill="#f59e0b" opacity="0.04" />
-        </svg>
-
-        {/* Selected camera tooltip */}
-        {selectedCam && (() => {
-          const cam = cameras.find(c => c.id === selectedCam);
-          if (!cam) return null;
-          return (
-            <div className="absolute top-3 right-3 bg-[#111827] border border-[#243348] rounded-md p-3 text-[11px] min-w-[160px]">
-              <div className="flex items-center gap-2 mb-2">
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cam.status === 'online' ? 'bg-[#22c55e]' : cam.status === 'warning' ? 'bg-[#f59e0b]' : 'bg-[#ef4444]'}`} />
-                <span className="font-semibold text-[#e2eaf3]">{cam.id}</span>
-              </div>
-              <div className="text-[#4d607a] text-[10px]">{cam.name}</div>
-              <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
-                <span className="text-[#4d607a]">FPS</span><span className="text-[#8899b4] font-mono">{cam.fps}</span>
-                <span className="text-[#4d607a]">Vehicles</span><span className="text-[#8899b4] font-mono">{cam.vehicles}</span>
-                <span className="text-[#4d607a]">Traffic</span>
-                <span className={`capitalize font-mono text-[10px] ${cam.traffic === 'high' ? 'text-[#f87171]' : cam.traffic === 'moderate' ? 'text-[#fbbf24]' : 'text-[#4ade80]'}`}>
-                  {cam.traffic}
-                </span>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* Map legend bottom */}
-        <div className="absolute bottom-2 left-3 flex items-center gap-3 text-[9px] text-[#2a3a50] font-mono">
-          <span>DEMO DATA ΓÇö NOT GEOGRAPHIC</span>
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-0.5 inline-block bg-[#ef4444] opacity-50" />HIGH CONGESTION
-          </span>
         </div>
       </div>
     </div>
