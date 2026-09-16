@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Search, Bell, CheckCircle, User } from 'lucide-react'
+import { Search, Bell, CheckCircle, User, Menu } from 'lucide-react'
 
 interface Props {
   title: string
   subtitle: string
+  onMenuClick?: () => void
 }
 
-export default function Navbar({ title, subtitle }: Props) {
+export default function Navbar({ title, subtitle, onMenuClick }: Props) {
   const [time, setTime] = useState(new Date())
 
   useEffect(() => {
@@ -16,22 +17,31 @@ export default function Navbar({ title, subtitle }: Props) {
 
   return (
     <header
-      className="flex items-center gap-4 px-6 py-3 border-b shrink-0"
+      className="flex items-center gap-2 md:gap-4 px-4 md:px-6 py-3 border-b shrink-0"
       style={{ backgroundColor: '#0f1629', borderColor: '#1e2d4a' }}
     >
+      {/* Mobile Menu Toggle */}
+      <button 
+        className="md:hidden p-1.5 -ml-1.5 rounded-md transition-colors mr-2"
+        style={{ color: '#8899bb' }}
+        onClick={onMenuClick}
+      >
+        <Menu size={20} />
+      </button>
+
       {/* Title */}
       <div className="flex-1 min-w-0">
         <h1 className="text-sm font-semibold truncate" style={{ color: '#f0f4ff' }}>
           {title}
         </h1>
-        <p className="text-xs truncate" style={{ color: '#4a6080' }}>
+        <p className="text-xs truncate hidden sm:block" style={{ color: '#4a6080' }}>
           {subtitle}
         </p>
       </div>
 
       {/* Search */}
       <div
-        className="flex items-center gap-2 px-3 py-1.5 rounded border w-48"
+        className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded border w-48"
         style={{ backgroundColor: '#141c30', borderColor: '#1e2d4a' }}
       >
         <Search size={12} color="#4a6080" />
@@ -43,7 +53,7 @@ export default function Navbar({ title, subtitle }: Props) {
       </div>
 
       {/* System status */}
-      <div className="flex items-center gap-1.5">
+      <div className="hidden sm:flex items-center gap-1.5">
         <CheckCircle size={12} color="#22c55e" />
         <span className="text-xs font-medium" style={{ color: '#22c55e' }}>
           All Systems Online
@@ -51,7 +61,7 @@ export default function Navbar({ title, subtitle }: Props) {
       </div>
 
       {/* Divider */}
-      <div className="w-px h-4" style={{ backgroundColor: '#1e2d4a' }} />
+      <div className="hidden sm:block w-px h-4" style={{ backgroundColor: '#1e2d4a' }} />
 
       {/* Notifications */}
       <button className="relative" style={{ color: '#4a6080' }}>

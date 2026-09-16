@@ -364,7 +364,7 @@ export default function Dashboard({ onCameraSelect }: { onCameraSelect: (id: str
       <div className="p-5 space-y-5">
 
         {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
           {kpis.map(k => <KPICard key={k.title} {...k} />)}
         </div>
 
