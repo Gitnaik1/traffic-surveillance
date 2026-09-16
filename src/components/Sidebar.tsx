@@ -1,4 +1,4 @@
-﻿import {
+import {
   LayoutDashboard,
   Video,
   Car,
@@ -61,9 +61,6 @@ interface Props {
 }
 
 export default function Sidebar({ activePage, onNavigate, isOpen, onClose, alertCount = 0 }: Props) {
-}
-
-export default function Sidebar({ activePage, onNavigate, isOpen, onClose }: Props) {
   return (
     <aside
       className={`flex flex-col w-64 md:w-56 shrink-0 border-r fixed md:relative inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out ${

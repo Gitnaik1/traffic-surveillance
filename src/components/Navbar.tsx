@@ -10,9 +10,6 @@ interface Props {
 }
 
 export default function Navbar({ title, subtitle, onMenuClick, backendOnline = false, alertCount = 0 }: Props) {
-}
-
-export default function Navbar({ title, subtitle, onMenuClick }: Props) {
   const [time, setTime] = useState(new Date())
 
   useEffect(() => {
