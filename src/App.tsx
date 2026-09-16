@@ -1,4 +1,5 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
+import { AppProvider, useApp } from './context/AppContext'
 import Sidebar from './components/Sidebar'
 import Navbar from './components/Navbar'
 
@@ -29,8 +30,10 @@ export type Page =
   | 'system-health' 
   | 'settings'
 
-export default function App() {
+function AppShell() {
   const [activePage, setActivePage] = useState<Page>('dashboard')
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const { backendOnline, unacknowledgedCount } = useApp()
 
   const pageInfo: Record<Page, { title: string; subtitle: string }> = {
     'dashboard': { title: 'Dashboard', subtitle: 'System overview and key metrics.' },
@@ -49,7 +52,7 @@ export default function App() {
 
   const renderPage = () => {
     switch (activePage) {
-      case 'dashboard': return <Dashboard onCameraSelect={(id) => console.log('Camera selected:', id)} />
+      case 'dashboard': return <Dashboard onCameraSelect={(id) => { console.log('Camera selected:', id); setActivePage('live-cameras'); }} />
       case 'live-cameras': return <LiveCameras onSelectCamera={(id) => console.log('Camera selected:', id)} />
       case 'vehicle-intelligence': return <VehicleIntelligence />
       case 'anpr': return <ANPRPage />
@@ -66,13 +69,45 @@ export default function App() {
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#0a0e1a' }}>
-      <Sidebar activePage={activePage} onNavigate={setActivePage} />
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <Navbar title={pageInfo[activePage].title} subtitle={pageInfo[activePage].subtitle} />
-        <main className="flex-1 overflow-auto p-6" style={{ backgroundColor: '#0a0e1a' }}>
+      {/* Mobile Sidebar Backdrop */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden" 
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <Sidebar 
+        activePage={activePage} 
+        onNavigate={(page) => {
+          setActivePage(page)
+          setIsSidebarOpen(false)
+        }} 
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        alertCount={unacknowledgedCount}
+      />
+
+      <div className="flex flex-col flex-1 overflow-hidden min-w-0">
+        <Navbar 
+          title={pageInfo[activePage].title} 
+          subtitle={pageInfo[activePage].subtitle} 
+          onMenuClick={() => setIsSidebarOpen(true)}
+          backendOnline={backendOnline}
+          alertCount={unacknowledgedCount}
+        />
+        <main className="flex-1 overflow-auto p-4 md:p-6" style={{ backgroundColor: '#0a0e1a' }}>
           {renderPage()}
         </main>
       </div>
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <AppProvider>
+      <AppShell />
+    </AppProvider>
   )
 }

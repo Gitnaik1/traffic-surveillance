@@ -1,27 +1,93 @@
-import { useState } from "react";
+﻿import { useState, useEffect } from "react";
+import { getSettings, updateSettings } from "../services/api";
 import { Card, Toggle, Btn, SectionHeader, InputField, Input, Select } from "../components/ui";
 
 type Section = "general" | "notifications" | "thresholds" | "anpr" | "tracking" | "cameras" | "users" | "security";
 
 const TABS: { id: Section; label: string; icon: string }[] = [
-  { id: "general", label: "General", icon: "⊞" },
-  { id: "notifications", label: "Notifications", icon: "⚑" },
-  { id: "thresholds", label: "Alert Thresholds", icon: "▦" },
-  { id: "anpr", label: "ANPR Settings", icon: "⬢" },
-  { id: "tracking", label: "Tracking", icon: "◈" },
-  { id: "cameras", label: "Camera Settings", icon: "◉" },
-  { id: "users", label: "User Management", icon: "◎" },
-  { id: "security", label: "Security", icon: "⬡" },
+  { id: "general", label: "General", icon: "Γè₧" },
+  { id: "notifications", label: "Notifications", icon: "ΓÜæ" },
+  { id: "thresholds", label: "Alert Thresholds", icon: "Γûª" },
+  { id: "anpr", label: "ANPR Settings", icon: "Γ¼ó" },
+  { id: "tracking", label: "Tracking", icon: "Γùê" },
+  { id: "cameras", label: "Camera Settings", icon: "Γùë" },
+  { id: "users", label: "User Management", icon: "ΓùÄ" },
+  { id: "security", label: "Security", icon: "Γ¼í" },
 ];
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState<Section>("general");
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState<Record<string, any>>({});
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  useEffect(() => {
+    getSettings().then((res) => {
+      setSettings({
+        detection_confidence: Number(res.detection_confidence ?? 0.5),
+        anpr_confidence: Number(res.anpr_confidence ?? 0.85),
+        alert_threshold_congestion: Number(res.alert_threshold_congestion ?? 80),
+        alert_threshold_speed: Number(res.alert_threshold_speed ?? 80),
+        max_track_age: Number(res.max_track_age ?? 30),
+        fps_target: Number(res.fps_target ?? 30),
+        retention_days: Number(res.retention_days ?? 30),
+        enable_anpr: res.enable_anpr === "true" || res.enable_anpr === true,
+        enable_reid: res.enable_reid === "true" || res.enable_reid === true,
+        enable_speed_detection: res.enable_speed_detection === "true" || res.enable_speed_detection === true,
+        enable_wrong_way: res.enable_wrong_way === "true" || res.enable_wrong_way === true,
+        enable_congestion_alerts: res.enable_congestion_alerts === "true" || res.enable_congestion_alerts === true,
+        alert_email: res.alert_email || "admin@urbantrax.gov.in",
+        timezone: res.timezone || "Asia/Kolkata",
+        site_name: res.site_name || "UrbanTrax AI ΓÇö Bangalore",
+      });
+      setLoading(false);
+    }).catch((e) => {
+      console.error(e);
+      // Fallback defaults
+      setSettings({
+        detection_confidence: 0.5,
+        anpr_confidence: 0.85,
+        alert_threshold_congestion: 80,
+        alert_threshold_speed: 80,
+        max_track_age: 30,
+        fps_target: 30,
+        retention_days: 30,
+        enable_anpr: true,
+        enable_reid: true,
+        enable_speed_detection: true,
+        enable_wrong_way: true,
+        enable_congestion_alerts: true,
+        alert_email: "admin@urbantrax.gov.in",
+        timezone: "Asia/Kolkata",
+        site_name: "UrbanTrax AI ΓÇö Bangalore",
+      });
+      setLoading(false);
+    });
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      await updateSettings(settings);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to save settings. Backend might be offline.");
+    }
   };
+
+  const updateSetting = (key: string, val: any) => {
+    setSettings((prev) => ({ ...prev, [key]: val }));
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <SectionHeader title="System Settings" subtitle="Configure UrbanTrax AI platform parameters and preferences." />
+        <Card className="p-6 text-center text-slate-400">Loading settings...</Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -64,19 +130,19 @@ export default function Settings() {
                 </h2>
               </div>
               <div className="flex gap-2">
-                <Btn variant="ghost" size="sm">Reset</Btn>
+                <Btn variant="ghost" size="sm" onClick={() => window.location.reload()}>Reset</Btn>
                 <Btn size="sm" onClick={handleSave}>
-                  {saved ? "✓ Saved" : "Save Changes"}
+                  {saved ? "Γ£ô Saved" : "Save Changes"}
                 </Btn>
               </div>
             </div>
 
-            {activeTab === "general" && <GeneralSection />}
-            {activeTab === "notifications" && <NotificationsSection />}
-            {activeTab === "thresholds" && <ThresholdsSection />}
-            {activeTab === "anpr" && <ANPRSection />}
-            {activeTab === "tracking" && <TrackingSection />}
-            {activeTab === "cameras" && <CamerasSection />}
+            {activeTab === "general" && <GeneralSection settings={settings} updateSetting={updateSetting} />}
+            {activeTab === "notifications" && <NotificationsSection settings={settings} updateSetting={updateSetting} />}
+            {activeTab === "thresholds" && <ThresholdsSection settings={settings} updateSetting={updateSetting} />}
+            {activeTab === "anpr" && <ANPRSection settings={settings} updateSetting={updateSetting} />}
+            {activeTab === "tracking" && <TrackingSection settings={settings} updateSetting={updateSetting} />}
+            {activeTab === "cameras" && <CamerasSection settings={settings} updateSetting={updateSetting} />}
             {activeTab === "users" && <UsersSection />}
             {activeTab === "security" && <SecuritySection />}
           </Card>
@@ -117,23 +183,21 @@ function SliderInput({ value, onChange, min, max, unit }: { value: number; onCha
   );
 }
 
-function GeneralSection() {
-  const [systemName, setSystemName] = useState("UrbanTrax AI — Bangalore");
-  const [tz, setTz] = useState("Asia/Kolkata");
+function GeneralSection({ settings, updateSetting }: { settings: Record<string, any>; updateSetting: (k: string, v: any) => void }) {
   const [dateFmt, setDateFmt] = useState("DD/MM/YYYY");
   const [theme, setTheme] = useState("dark");
 
   return (
     <div className="flex flex-col gap-0">
       <SettingRow label="System Name" description="Identifies this deployment in reports and notifications.">
-        <div className="w-64"><Input value={systemName} onChange={setSystemName} /></div>
+        <div className="w-64"><Input value={settings.site_name} onChange={(v) => updateSetting("site_name", v)} /></div>
       </SettingRow>
       <SettingRow label="Timezone" description="Used for timestamps in alerts, reports, and logs.">
         <div className="w-48">
-          <Select value={tz} onChange={setTz} options={[
-            { value: "Asia/Kolkata", label: "IST — Asia/Kolkata" },
+          <Select value={settings.timezone} onChange={(v) => updateSetting("timezone", v)} options={[
+            { value: "Asia/Kolkata", label: "IST ΓÇö Asia/Kolkata" },
             { value: "UTC", label: "UTC" },
-            { value: "Asia/Singapore", label: "SGT — Asia/Singapore" },
+            { value: "Asia/Singapore", label: "SGT ΓÇö Asia/Singapore" },
           ]} />
         </div>
       </SettingRow>
@@ -158,22 +222,20 @@ function GeneralSection() {
   );
 }
 
-function NotificationsSection() {
-  const [alerts, setAlerts] = useState(true);
+function NotificationsSection({ settings, updateSetting }: { settings: Record<string, any>; updateSetting: (k: string, v: any) => void }) {
   const [offline, setOffline] = useState(true);
-  const [congestion, setCongestion] = useState(false);
   const [watchlist, setWatchlist] = useState(true);
 
   return (
     <div>
-      <SettingRow label="Alert Notifications" description="Receive real-time platform alerts for anomalies and incidents.">
-        <Toggle checked={alerts} onChange={setAlerts} />
+      <SettingRow label="Alert Email" description="Email address for alert notifications.">
+        <div className="w-64"><Input value={settings.alert_email} onChange={(v) => updateSetting("alert_email", v)} /></div>
+      </SettingRow>
+      <SettingRow label="Congestion Alerts" description="Alert when road segments exceed congestion threshold.">
+        <Toggle checked={settings.enable_congestion_alerts} onChange={(v) => updateSetting("enable_congestion_alerts", v)} />
       </SettingRow>
       <SettingRow label="Camera Offline Alerts" description="Notify when a camera goes offline or stops streaming.">
         <Toggle checked={offline} onChange={setOffline} />
-      </SettingRow>
-      <SettingRow label="Congestion Alerts" description="Alert when road segments exceed congestion threshold.">
-        <Toggle checked={congestion} onChange={setCongestion} />
       </SettingRow>
       <SettingRow label="Watchlist Alerts" description="Alert when a watchlisted plate or vehicle is detected.">
         <Toggle checked={watchlist} onChange={setWatchlist} />
@@ -182,22 +244,19 @@ function NotificationsSection() {
   );
 }
 
-function ThresholdsSection() {
-  const [congestion, setCongestion] = useState(80);
-  const [ocrConf, setOcrConf] = useState(85);
-  const [vehicleMatch, setVehicleMatch] = useState(75);
+function ThresholdsSection({ settings, updateSetting }: { settings: Record<string, any>; updateSetting: (k: string, v: any) => void }) {
   const [severity, setSeverity] = useState("medium");
 
   return (
     <div>
       <SettingRow label="Congestion Threshold" description="LOS percentage at which a congestion alert is triggered.">
-        <SliderInput value={congestion} onChange={setCongestion} min={50} max={100} unit="%" />
+        <SliderInput value={settings.alert_threshold_congestion} onChange={(v) => updateSetting("alert_threshold_congestion", v)} min={50} max={100} unit="%" />
       </SettingRow>
-      <SettingRow label="OCR Confidence Threshold" description="Minimum confidence to accept a plate read as valid.">
-        <SliderInput value={ocrConf} onChange={setOcrConf} min={50} max={99} unit="%" />
+      <SettingRow label="Speed Threshold" description="Speed in km/h at which a speeding alert is triggered.">
+        <SliderInput value={settings.alert_threshold_speed} onChange={(v) => updateSetting("alert_threshold_speed", v)} min={40} max={160} unit="km/h" />
       </SettingRow>
-      <SettingRow label="Vehicle Match Threshold" description="Minimum similarity score for cross-camera Re-ID matching.">
-        <SliderInput value={vehicleMatch} onChange={setVehicleMatch} min={50} max={99} unit="%" />
+      <SettingRow label="Detection Confidence Threshold" description="Minimum confidence to accept a detection as valid.">
+        <SliderInput value={Math.round(settings.detection_confidence * 100)} onChange={(v) => updateSetting("detection_confidence", v / 100)} min={50} max={99} unit="%" />
       </SettingRow>
       <SettingRow label="Default Alert Severity" description="Severity floor below which alerts are suppressed.">
         <div className="w-40">
@@ -213,62 +272,53 @@ function ThresholdsSection() {
   );
 }
 
-function ANPRSection() {
-  const [ocrConf, setOcrConf] = useState(85);
+function ANPRSection({ settings, updateSetting }: { settings: Record<string, any>; updateSetting: (k: string, v: any) => void }) {
   const [normalize, setNormalize] = useState(true);
-  const [autoValidate, setAutoValidate] = useState(false);
-  const [reviewThreshold, setReviewThreshold] = useState(70);
 
   return (
     <div>
+      <SettingRow label="Enable ANPR" description="Turn on Automatic Number Plate Recognition system-wide.">
+        <Toggle checked={settings.enable_anpr} onChange={(v) => updateSetting("enable_anpr", v)} />
+      </SettingRow>
       <SettingRow label="OCR Confidence Threshold" description="Reads below this value are sent to manual review.">
-        <SliderInput value={ocrConf} onChange={setOcrConf} min={50} max={99} unit="%" />
+        <SliderInput value={Math.round(settings.anpr_confidence * 100)} onChange={(v) => updateSetting("anpr_confidence", v / 100)} min={50} max={99} unit="%" />
       </SettingRow>
       <SettingRow label="Plate Normalization" description="Standardize plate formats before storage and matching.">
         <Toggle checked={normalize} onChange={setNormalize} />
       </SettingRow>
-      <SettingRow label="Auto-Validation" description="Automatically validate high-confidence reads without human review.">
-        <Toggle checked={autoValidate} onChange={setAutoValidate} />
-      </SettingRow>
-      <SettingRow label="Manual Review Threshold" description="Reads below this confidence are flagged for operator review.">
-        <SliderInput value={reviewThreshold} onChange={setReviewThreshold} min={40} max={90} unit="%" />
-      </SettingRow>
     </div>
   );
 }
 
-function TrackingSection() {
-  const [trackConf, setTrackConf] = useState(72);
-  const [maxAge, setMaxAge] = useState(30);
-  const [matchThreshold, setMatchThreshold] = useState(75);
-
+function TrackingSection({ settings, updateSetting }: { settings: Record<string, any>; updateSetting: (k: string, v: any) => void }) {
   return (
     <div>
-      <SettingRow label="Tracking Confidence" description="Minimum detector confidence to initiate a new track.">
-        <SliderInput value={trackConf} onChange={setTrackConf} min={40} max={99} unit="%" />
+      <SettingRow label="Enable Re-ID" description="Enable vehicle re-identification across multiple cameras.">
+        <Toggle checked={settings.enable_reid} onChange={(v) => updateSetting("enable_reid", v)} />
+      </SettingRow>
+      <SettingRow label="Enable Speed Detection" description="Track and calculate estimated vehicle speeds.">
+        <Toggle checked={settings.enable_speed_detection} onChange={(v) => updateSetting("enable_speed_detection", v)} />
+      </SettingRow>
+      <SettingRow label="Enable Wrong Way Detection" description="Detect vehicles moving against defined traffic flow.">
+        <Toggle checked={settings.enable_wrong_way} onChange={(v) => updateSetting("enable_wrong_way", v)} />
       </SettingRow>
       <SettingRow label="Maximum Track Age" description="Frames a track is retained without a detection update.">
-        <SliderInput value={maxAge} onChange={setMaxAge} min={5} max={120} unit="f" />
-      </SettingRow>
-      <SettingRow label="Vehicle Matching Threshold" description="Re-ID similarity score for cross-camera association.">
-        <SliderInput value={matchThreshold} onChange={setMatchThreshold} min={50} max={99} unit="%" />
+        <SliderInput value={settings.max_track_age} onChange={(v) => updateSetting("max_track_age", v)} min={5} max={120} unit="f" />
       </SettingRow>
     </div>
   );
 }
 
-function CamerasSection() {
-  const [refresh, setRefresh] = useState(5);
-  const [timeout, setTimeout_] = useState(30);
+function CamerasSection({ settings, updateSetting }: { settings: Record<string, any>; updateSetting: (k: string, v: any) => void }) {
   const [offlineThreshold, setOfflineThreshold] = useState(60);
 
   return (
     <div>
-      <SettingRow label="Default Refresh Interval" description="How often the UI polls camera metadata from the API (seconds).">
-        <SliderInput value={refresh} onChange={setRefresh} min={1} max={60} unit="s" />
+      <SettingRow label="Target FPS" description="Target frames per second for camera ingestion.">
+        <SliderInput value={settings.fps_target} onChange={(v) => updateSetting("fps_target", v)} min={10} max={60} unit="fps" />
       </SettingRow>
-      <SettingRow label="Stream Timeout" description="Seconds before a non-responsive stream is marked as timed out.">
-        <SliderInput value={timeout} onChange={setTimeout_} min={5} max={120} unit="s" />
+      <SettingRow label="Data Retention" description="Number of days to retain camera video data and logs.">
+        <SliderInput value={settings.retention_days} onChange={(v) => updateSetting("retention_days", v)} min={1} max={90} unit="d" />
       </SettingRow>
       <SettingRow label="Offline Threshold" description="Seconds without a heartbeat before a camera is flagged offline.">
         <SliderInput value={offlineThreshold} onChange={setOfflineThreshold} min={30} max={300} unit="s" />
