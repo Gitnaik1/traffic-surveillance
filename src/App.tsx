@@ -83,6 +83,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
 function AppShell() {
   const [activePage, setActivePage] = useState<Page>('dashboard')
+  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const { backendOnline, unacknowledgedCount } = useApp()
 
@@ -103,8 +104,23 @@ function AppShell() {
 
   const renderPage = () => {
     switch (activePage) {
-      case 'dashboard': return <Dashboard onCameraSelect={(id) => { console.log('Camera selected:', id); setActivePage('live-cameras'); }} />
-      case 'live-cameras': return <LiveCameras onSelectCamera={(id) => console.log('Camera selected:', id)} />
+      case 'dashboard':
+        return (
+          <Dashboard
+            onCameraSelect={(id) => {
+              setSelectedCameraId(id);
+              setActivePage('live-cameras');
+            }}
+          />
+        );
+      case 'live-cameras':
+        return (
+          <LiveCameras
+            selectedCameraId={selectedCameraId}
+            onSelectCamera={(id) => setSelectedCameraId(id)}
+            onClearSelectedCamera={() => setSelectedCameraId(null)}
+          />
+        );
       case 'vehicle-intelligence': return <VehicleIntelligence />
       case 'anpr': return <ANPRPage />
       case 'trajectories': return <TrajectoriesPage />
