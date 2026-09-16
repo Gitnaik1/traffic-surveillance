@@ -1,6 +1,18 @@
-type Severity = "critical" | "high" | "medium" | "low" | "active" | "inactive" | "acknowledged" | "resolved" | "moderate" | "severe" | "warning" | "info";
+type Severity =
+  | "critical"
+  | "high"
+  | "medium"
+  | "low"
+  | "warning"
+  | "info"
+  | "active"
+  | "inactive"
+  | "acknowledged"
+  | "resolved"
+  | "moderate"
+  | "severe";
 
-const config: Record<Severity, { bg: string; color: string; border: string; label: string }> = {
+const config: Record<string, { bg: string; color: string; border: string; label: string }> = {
   critical: { bg: "rgba(239,68,68,0.15)", color: "#f87171", border: "rgba(239,68,68,0.3)", label: "CRITICAL" },
   high: { bg: "rgba(245,158,11,0.15)", color: "#fbbf24", border: "rgba(245,158,11,0.3)", label: "HIGH" },
   warning: { bg: "rgba(245,158,11,0.15)", color: "#fbbf24", border: "rgba(245,158,11,0.3)", label: "WARNING" },
@@ -16,12 +28,18 @@ const config: Record<Severity, { bg: string; color: string; border: string; labe
 };
 
 interface BadgeProps {
-  severity: Severity;
+  severity: Severity | string;
   label?: string;
 }
 
 export default function Badge({ severity, label }: BadgeProps) {
-  const c = config[severity];
+  const c = config[severity] || {
+    bg: "rgba(59,130,246,0.15)",
+    color: "#60a5fa",
+    border: "rgba(59,130,246,0.3)",
+    label: (severity || "INFO").toUpperCase(),
+  };
+
   return (
     <span
       style={{
