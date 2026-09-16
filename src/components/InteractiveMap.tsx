@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { MapPin, Navigation, Layers, ZoomIn, ZoomOut, Maximize2, ShieldAlert, Video } from 'lucide-react'
+import { Navigation, ZoomIn, ZoomOut } from 'lucide-react'
 
-// Fix default leaflet marker icon path issue in Vite
+// Fix Leaflet default marker icon path issue in Vite
 delete (L.Icon.Default.prototype as any)._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -39,7 +39,6 @@ interface Props {
   height?: string
 }
 
-// Default Bengaluru Locations
 const DEFAULT_CAMERAS: MapCamera[] = [
   { id: 'CAM_01', name: 'MG Road Junction', lat: 12.9716, lng: 77.5946, status: 'active', vehicleCount: 42, speedLimit: 60 },
   { id: 'CAM_02', name: 'Silk Board Flyover', lat: 12.9172, lng: 77.6228, status: 'warning', vehicleCount: 88, speedLimit: 50 },
@@ -56,7 +55,7 @@ export default function InteractiveMap({
   onSelectCamera,
   center = [12.9716, 77.5946],
   zoom = 12,
-  height = '420px',
+  height = '360px',
 }: Props) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
@@ -64,14 +63,14 @@ export default function InteractiveMap({
   const polylineRef = useRef<L.Polyline | null>(null)
   const [tileLayerType, setTileLayerType] = useState<'dark' | 'satellite' | 'street'>('dark')
 
-  // Map Tile Layer URLs
+  // Reliable Map Tile Layers
   const TILE_URLS = {
-    dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    dark: 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
     satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    street: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    street: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   }
 
-  // Initialize Map
+  // Initialize Map & invalidateSize to ensure 100% full height render
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return
 
@@ -83,13 +82,23 @@ export default function InteractiveMap({
 
     const initialTileLayer = L.tileLayer(TILE_URLS.dark, {
       maxZoom: 19,
-      attribution: '&copy; CartoDB &copy; OpenStreetMap contributors',
+      attribution: '&copy; OpenStreetMap contributors &copy; CartoDB',
     }).addTo(map)
 
     ;(map as any)._customTileLayer = initialTileLayer
     mapInstanceRef.current = map
 
+    // Ensure Leaflet resizes to fit container correctly
+    const resizeTimer = setTimeout(() => {
+      map.invalidateSize()
+    }, 150)
+
+    const handleResize = () => map.invalidateSize()
+    window.addEventListener('resize', handleResize)
+
     return () => {
+      clearTimeout(resizeTimer)
+      window.removeEventListener('resize', handleResize)
       map.remove()
       mapInstanceRef.current = null
     }
@@ -110,6 +119,7 @@ export default function InteractiveMap({
     }).addTo(map)
 
     ;(map as any)._customTileLayer = newTileLayer
+    map.invalidateSize()
   }, [tileLayerType])
 
   // Render Camera Pins
@@ -117,7 +127,7 @@ export default function InteractiveMap({
     const map = mapInstanceRef.current
     if (!map) return
 
-    // Clear old markers
+    // Clear existing markers
     Object.values(markersRef.current).forEach((m) => m.remove())
     markersRef.current = {}
 
@@ -125,10 +135,9 @@ export default function InteractiveMap({
       const isSelected = cam.id === selectedCameraId
       const statusColor = cam.status === 'warning' ? '#ef4444' : '#22c55e'
 
-      // Custom Leaflet HTML Pin
       const iconHtml = `
         <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;">
-          <div style="position: absolute; width: 28px; height: 28px; border-radius: 50%; background-color: ${statusColor}25; border: 2px solid ${statusColor}; animation: pulse 2s infinite;"></div>
+          <div style="position: absolute; width: 28px; height: 28px; border-radius: 50%; background-color: ${statusColor}30; border: 2px solid ${statusColor};"></div>
           <div style="width: 14px; height: 14px; border-radius: 50%; background-color: ${isSelected ? '#3b82f6' : statusColor}; border: 2px solid #ffffff; box-shadow: 0 0 10px ${statusColor};"></div>
         </div>
       `
@@ -142,7 +151,6 @@ export default function InteractiveMap({
 
       const marker = L.marker([cam.lat, cam.lng], { icon: customIcon }).addTo(map)
 
-      // Popup details
       const popupContent = `
         <div style="background: #0f1629; color: #f0f4ff; padding: 10px; border-radius: 8px; border: 1px solid #1e2d4a; font-family: sans-serif; min-width: 180px;">
           <div style="font-weight: 700; font-size: 13px; color: #3b82f6; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;">
@@ -163,7 +171,7 @@ export default function InteractiveMap({
         </div>
       `
 
-      marker.bindPopup(popupContent, { className: 'dark-leaflet-popup' })
+      marker.bindPopup(popupContent)
       marker.on('click', () => {
         if (onSelectCamera) onSelectCamera(cam.id)
       })
@@ -211,9 +219,9 @@ export default function InteractiveMap({
   }, [selectedCameraId])
 
   return (
-    <div className="relative rounded-xl overflow-hidden border border-[#1e2d4a] shadow-2xl" style={{ height }}>
-      {/* Map Canvas */}
-      <div ref={mapContainerRef} className="w-full h-full z-0" />
+    <div className="relative rounded-xl overflow-hidden border border-[#1e2d4a] shadow-2xl w-full" style={{ height, minHeight: '340px' }}>
+      {/* Map Canvas with Explicit Height */}
+      <div ref={mapContainerRef} className="w-full h-full z-0" style={{ height: '100%', minHeight: '340px', background: '#0a0e1a' }} />
 
       {/* Top Left Status Bar */}
       <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-[#0a0e1acc] backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#1e2d4a]">
@@ -221,7 +229,7 @@ export default function InteractiveMap({
         <span className="text-xs font-mono font-semibold text-[#f0f4ff]">BENGALURU GIS METRO TRAFFIC</span>
       </div>
 
-      {/* Top Right Controls */}
+      {/* Top Right Map Style Switcher */}
       <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-[#0a0e1acc] backdrop-blur-md p-1 rounded-lg border border-[#1e2d4a]">
         <button
           onClick={() => setTileLayerType('dark')}
