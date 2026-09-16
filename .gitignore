@@ -141,3 +141,11 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# ── Person 2: ai/plate_ocr (license plate detection + OCR) ──
+ai/plate_ocr/models/*.pt
+ai/plate_ocr/output/
+ai/plate_ocr/samples/*.mp4
+.venv/
+venv/
+__pycache__/
