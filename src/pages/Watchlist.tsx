@@ -1,77 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Badge from "../components/Badge";
+import { useApp } from "../context/AppContext";
+import type { WatchlistEntry, Alert } from "../services/api";
 
-
-interface WatchlistEntry {
-  id: string;
-  plate_number: string;
-  vehicle_id: string;
-  description: string;
-  reason: string;
-  priority: "critical" | "high" | "medium" | "low";
-  created_at: string;
-  last_seen: string;
-  last_camera: string;
-  active: boolean;
-  alert_count: number;
-}
-
-const INITIAL_WATCHLIST: WatchlistEntry[] = [
-  {
-    id: "WL-0021", plate_number: "KA01AB1234", vehicle_id: "VH-8821",
-    description: "Black Maruti Swift · KA01AB1234",
-    reason: "Suspected in robbery case · Bengaluru North",
-    priority: "critical", created_at: "2025-09-10", last_seen: "2025-09-16 10:35",
-    last_camera: "CAM-003", active: true, alert_count: 7,
-  },
-  {
-    id: "WL-0020", plate_number: "DL3CAB2244", vehicle_id: "VH-9910",
-    description: "White Toyota Innova · DL3CAB2244",
-    reason: "Reported stolen vehicle",
-    priority: "high", created_at: "2025-09-12", last_seen: "2025-09-16 08:52",
-    last_camera: "CAM-006", active: true, alert_count: 3,
-  },
-  {
-    id: "WL-0019", plate_number: "MH12EF9012", vehicle_id: "VH-3312",
-    description: "Silver Honda City · MH12EF9012",
-    reason: "ANPR mismatch detected multiple times",
-    priority: "medium", created_at: "2025-09-08", last_seen: "2025-09-15 14:20",
-    last_camera: "CAM-001", active: true, alert_count: 5,
-  },
-  {
-    id: "WL-0018", plate_number: "KA05CD5678", vehicle_id: "VH-5520",
-    description: "Red Hyundai i20 · KA05CD5678",
-    reason: "Traffic violation repeat offender",
-    priority: "low", created_at: "2025-09-05", last_seen: "2025-09-14 09:10",
-    last_camera: "CAM-007", active: true, alert_count: 2,
-  },
-  {
-    id: "WL-0017", plate_number: "TN01GH3456", vehicle_id: "VH-2201",
-    description: "Blue Tata Nexon · TN01GH3456",
-    reason: "Suspicious movement pattern",
-    priority: "medium", created_at: "2025-09-01", last_seen: "2025-09-13 17:05",
-    last_camera: "CAM-005", active: false, alert_count: 1,
-  },
-  {
-    id: "WL-0016", plate_number: "KA02PQ7788", vehicle_id: "VH-1105",
-    description: "Grey Renault Kwid · KA02PQ7788",
-    reason: "Under intelligence observation",
-    priority: "high", created_at: "2025-08-28", last_seen: "2025-09-12 11:30",
-    last_camera: "CAM-002", active: false, alert_count: 4,
-  },
-];
-
-const WATCHLIST_MATCH = {
-  plate: "KA01AB1234",
-  camera: "CAM-003",
-  time: "10:35:08",
-  confidence: 94,
-  status: "critical",
-};
-
-function WatchlistMatchBanner({ match }: { match: typeof WATCHLIST_MATCH }) {
-  const [visible, setVisible] = useState(true);
-  if (!visible) return null;
+function WatchlistMatchBanner({ alert, onDismiss }: { alert: Alert; onDismiss: () => void }) {
+  if (!alert) return null;
   return (
     <div
       style={{
@@ -98,7 +31,7 @@ function WatchlistMatchBanner({ match }: { match: typeof WATCHLIST_MATCH }) {
           flexShrink: 0,
         }}
       >
-        ⚠
+        ΓÜá
       </div>
       <div style={{ flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
@@ -111,40 +44,22 @@ function WatchlistMatchBanner({ match }: { match: typeof WATCHLIST_MATCH }) {
         </div>
         <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
           <div>
-            <span style={{ fontSize: 10, color: "#94a3b8" }}>Plate · </span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "#f1f5f9", fontFamily: "JetBrains Mono, monospace" }}>{match.plate}</span>
+            <span style={{ fontSize: 10, color: "#94a3b8" }}>Plate ┬╖ </span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#f1f5f9", fontFamily: "JetBrains Mono, monospace" }}>{alert.plate || "UNKNOWN"}</span>
           </div>
           <div>
-            <span style={{ fontSize: 10, color: "#94a3b8" }}>Detected at · </span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#22d3ee", fontFamily: "JetBrains Mono, monospace" }}>{match.camera}</span>
+            <span style={{ fontSize: 10, color: "#94a3b8" }}>Detected at ┬╖ </span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#22d3ee", fontFamily: "JetBrains Mono, monospace" }}>{alert.camera}</span>
           </div>
           <div>
-            <span style={{ fontSize: 10, color: "#94a3b8" }}>Time · </span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9", fontFamily: "JetBrains Mono, monospace" }}>{match.time}</span>
-          </div>
-          <div>
-            <span style={{ fontSize: 10, color: "#94a3b8" }}>Confidence · </span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#34d399", fontFamily: "JetBrains Mono, monospace" }}>{match.confidence}%</span>
+            <span style={{ fontSize: 10, color: "#94a3b8" }}>Time ┬╖ </span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9", fontFamily: "JetBrains Mono, monospace" }}>{alert.timestamp}</span>
           </div>
         </div>
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         <button
-          style={{
-            padding: "6px 12px",
-            borderRadius: 6,
-            border: "1px solid #ef4444",
-            background: "rgba(239,68,68,0.18)",
-            color: "#f87171",
-            fontSize: 11,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          View Alert
-        </button>
-        <button
-          onClick={() => setVisible(false)}
+          onClick={onDismiss}
           style={{
             padding: "6px 10px",
             borderRadius: 6,
@@ -164,7 +79,7 @@ function WatchlistMatchBanner({ match }: { match: typeof WATCHLIST_MATCH }) {
 
 function AddVehicleModal({ onClose, onAdd }: {
   onClose: () => void;
-  onAdd: (entry: Partial<WatchlistEntry>) => void;
+  onAdd: (data: { plate_number: string; description: string; reason: string; priority: string; notes: string }) => void;
 }) {
   const [form, setForm] = useState({
     plate_number: "",
@@ -176,17 +91,7 @@ function AddVehicleModal({ onClose, onAdd }: {
 
   const handleSubmit = () => {
     if (!form.plate_number.trim()) return;
-    onAdd({
-      ...form,
-      priority: form.priority as WatchlistEntry["priority"],
-      id: `WL-${String(Math.floor(Math.random() * 9000) + 1000)}`,
-      vehicle_id: `VH-${Math.floor(Math.random() * 9000) + 1000}`,
-      created_at: new Date().toISOString().slice(0, 10),
-      last_seen: "—",
-      last_camera: "—",
-      active: true,
-      alert_count: 0,
-    });
+    onAdd(form);
     onClose();
   };
 
@@ -239,7 +144,7 @@ function AddVehicleModal({ onClose, onAdd }: {
               fontSize: 14,
             }}
           >
-            ×
+            ├ù
           </button>
         </div>
 
@@ -357,7 +262,7 @@ function AddVehicleModal({ onClose, onAdd }: {
   );
 }
 
-function WatchlistDetail({ entry, onClose }: { entry: WatchlistEntry; onClose: () => void }) {
+function WatchlistDetail({ entry, onClose, onToggle, onRemove }: { entry: WatchlistEntry; onClose: () => void; onToggle: () => void; onRemove: () => void; }) {
   return (
     <div
       style={{
@@ -394,7 +299,7 @@ function WatchlistDetail({ entry, onClose }: { entry: WatchlistEntry; onClose: (
             onClick={onClose}
             style={{ background: "transparent", border: "1px solid #1e2d45", color: "#64748b", borderRadius: 6, width: 32, height: 32, cursor: "pointer", fontSize: 16 }}
           >
-            ×
+            ├ù
           </button>
         </div>
 
@@ -404,10 +309,10 @@ function WatchlistDetail({ entry, onClose }: { entry: WatchlistEntry; onClose: (
             ["Vehicle ID", entry.vehicle_id],
             ["Description", entry.description],
             ["Reason", entry.reason],
-            ["Priority", entry.priority.toUpperCase()],
+            ["Priority", entry.priority?.toUpperCase()],
             ["Created Date", entry.created_at],
-            ["Last Seen", entry.last_seen],
-            ["Last Camera", entry.last_camera],
+            ["Last Seen", entry.last_seen || "ΓÇö"],
+            ["Last Camera", entry.last_camera || "ΓÇö"],
           ].map(([key, val]) => (
             <div key={key} style={{ padding: "10px 0", borderBottom: "1px solid #1a2438", display: "flex", flexDirection: "column", gap: 3 }}>
               <span style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "JetBrains Mono, monospace" }}>{key}</span>
@@ -416,45 +321,13 @@ function WatchlistDetail({ entry, onClose }: { entry: WatchlistEntry; onClose: (
               </span>
             </div>
           ))}
-
-          {/* Alert history */}
-          <div style={{ marginTop: 16 }}>
-            <div style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "JetBrains Mono, monospace", marginBottom: 10 }}>
-              Alert History ({entry.alert_count} alerts)
-            </div>
-            {Array.from({ length: Math.min(entry.alert_count, 4) }).map((_, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: "9px 12px",
-                  background: "#0f1829",
-                  border: "1px solid #1e2d45",
-                  borderRadius: 6,
-                  marginBottom: 6,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
-                <div style={{ width: 6, height: 6, borderRadius: "50%", background: i === 0 ? "#ef4444" : i === 1 ? "#f59e0b" : "#06b6d4", flexShrink: 0 }} />
-                <div>
-                  <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                    {["Blacklisted Vehicle", "ANPR Mismatch", "Suspicious Vehicle", "Unusual Traffic"][i % 4]}
-                  </div>
-                  <div style={{ fontSize: 10, color: "#475569", fontFamily: "JetBrains Mono, monospace" }}>
-                    CAM-00{i + 1} · 2025-09-{10 + i} {String(8 + i).padStart(2, "0")}:30
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
 
         <div style={{ padding: "14px 20px", borderTop: "1px solid #1e2d45", display: "flex", gap: 8 }}>
-          <button style={{ flex: 1, padding: "8px", borderRadius: 6, border: "1px solid #1e2d45", background: "transparent", color: "#94a3b8", fontSize: 12, cursor: "pointer" }}>
+          <button onClick={() => { onToggle(); onClose(); }} style={{ flex: 1, padding: "8px", borderRadius: 6, border: "1px solid #1e2d45", background: "transparent", color: "#94a3b8", fontSize: 12, cursor: "pointer" }}>
             {entry.active ? "Deactivate" : "Activate"}
           </button>
-          <button style={{ flex: 1, padding: "8px", borderRadius: 6, border: "1px solid #ef4444", background: "rgba(239,68,68,0.1)", color: "#f87171", fontSize: 12, cursor: "pointer" }}>
+          <button onClick={() => { onRemove(); onClose(); }} style={{ flex: 1, padding: "8px", borderRadius: 6, border: "1px solid #ef4444", background: "rgba(239,68,68,0.1)", color: "#f87171", fontSize: 12, cursor: "pointer" }}>
             Remove
           </button>
         </div>
@@ -463,61 +336,44 @@ function WatchlistDetail({ entry, onClose }: { entry: WatchlistEntry; onClose: (
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Main Page ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 export default function Watchlist() {
-  const [entries, setEntries] = useState<WatchlistEntry[]>(INITIAL_WATCHLIST);
+  const { alerts, watchlist, watchlistLoading, addPlateToWatchlist, removePlateFromWatchlist, toggleWatchlistActive } = useApp();
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState<WatchlistEntry | null>(null);
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
-  useEffect(() => {
-    fetch("http://localhost:8000/api/watchlist")
-      .then((res) => res.json())
-      .then((data) => {
-        // data.watchlist is: ["KA01AB1234", "MH12DE5678", "DL03C9999"]
-        if (data && data.watchlist) {
-          // Convert the backend plates into watchlist table entries
-          const backendEntries: WatchlistEntry[] = data.watchlist.map((plate: string, idx: number) => ({
-            id: `WL-BE-${idx + 1}`,
-            plate_number: plate,
-            vehicle_id: `VH-${1000 + idx}`,
-            description: `Tracked plate · ${plate}`,
-            reason: "Monitored via AI Surveillance Engine",
-            priority: "high",
-            created_at: new Date().toISOString().split("T")[0],
-            last_seen: "Just now",
-            last_camera: "CAM_01",
-            active: true,
-            alert_count: 1,
-          }));
-          // Update the table with live backend entries!
-          setEntries(backendEntries);
-        }
-      })
-      .catch((err) => console.error("Error fetching watchlist:", err));
-  }, []);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
-  const filtered = entries.filter((e) => {
-    if (filterStatus === "active") return e.active;
+  const filtered = watchlist.filter((e) => {
+    if (filterStatus === "active") return !!e.active;
     if (filterStatus === "inactive") return !e.active;
     return true;
   });
 
-  const handleAdd = (entry: Partial<WatchlistEntry>) => {
-    setEntries((prev) => [entry as WatchlistEntry, ...prev]);
-    if (entry.plate_number) {
-      fetch("http://localhost:8000/api/watchlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plate_number: entry.plate_number }),
-      }).catch((err) => console.error("Error adding to backend:", err));
+  const activeAlert = useMemo(() => {
+    if (bannerDismissed) return null;
+    let match = alerts.find(a => a.severity === 'critical' && !a.acknowledged && watchlist.some(w => w.plate_number === a.plate));
+    if (!match) {
+      match = alerts.find(a => a.severity === 'critical' && !a.acknowledged);
     }
+    return match;
+  }, [alerts, watchlist, bannerDismissed]);
+
+  const handleAdd = (data: { plate_number: string; description: string; reason: string; priority: string; notes: string }) => {
+    addPlateToWatchlist(data);
   };
+
+  if (watchlistLoading) {
+    return (
+      <div style={{ padding: "24px", color: "#94a3b8" }}>Loading watchlist...</div>
+    );
+  }
 
   return (
     <div style={{ padding: "24px", overflowY: "auto", height: "100%", background: "#0b0f1a" }}>
       {/* Watchlist match banner */}
-      <WatchlistMatchBanner match={WATCHLIST_MATCH} />
+      {activeAlert && <WatchlistMatchBanner alert={activeAlert} onDismiss={() => setBannerDismissed(true)} />}
 
       {/* Header actions */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
@@ -545,7 +401,7 @@ export default function Watchlist() {
         </div>
 
         <span style={{ fontSize: 12, color: "#64748b", fontFamily: "JetBrains Mono, monospace" }}>
-          {filtered.length} vehicles · {entries.filter((e) => e.active).length} active
+          {filtered.length} vehicles ┬╖ {watchlist.filter((e) => e.active).length} active
         </span>
 
         <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
@@ -643,10 +499,10 @@ export default function Watchlist() {
                   <Badge severity={entry.priority} />
                 </td>
                 <td style={{ padding: "11px 14px", fontSize: 11, color: "#64748b", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap" }}>
-                  {entry.created_at}
+                  {entry.created_at.slice(0, 10)}
                 </td>
                 <td style={{ padding: "11px 14px", fontSize: 11, color: "#64748b", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap" }}>
-                  {entry.last_seen}
+                  {entry.last_seen || "ΓÇö"}
                 </td>
                 <td style={{ padding: "11px 14px" }}>
                   <Badge severity={entry.active ? "active" : "inactive"} />
@@ -670,7 +526,7 @@ export default function Watchlist() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setEntries((prev) => prev.map((en) => en.id === entry.id ? { ...en, active: !en.active } : en));
+                        toggleWatchlistActive(entry.id, !entry.active);
                       }}
                       style={{
                         padding: "4px 10px",
@@ -694,7 +550,14 @@ export default function Watchlist() {
 
       {/* Modals / Drawers */}
       {showAdd && <AddVehicleModal onClose={() => setShowAdd(false)} onAdd={handleAdd} />}
-      {selected && <WatchlistDetail entry={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <WatchlistDetail
+          entry={selected}
+          onClose={() => setSelected(null)}
+          onToggle={() => toggleWatchlistActive(selected.id, !selected.active)}
+          onRemove={() => removePlateFromWatchlist(selected.plate_number)}
+        />
+      )}
     </div>
   );
 }

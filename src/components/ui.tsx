@@ -84,9 +84,10 @@ export function Th({ children }: { children: ReactNode }) {
   );
 }
 
-export function Td({ children, mono }: { children: ReactNode; mono?: boolean }) {
+export function Td({ children, mono, colSpan }: { children: ReactNode; mono?: boolean; colSpan?: number }) {
   return (
     <td
+      colSpan={colSpan}
       className="px-4 py-3"
       style={{
         color: "#94a3b8",
