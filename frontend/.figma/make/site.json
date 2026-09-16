@@ -1,6 +1,5 @@
 {
-  "description": "Provides a unified interface for monitoring urban traffic with real-time vehicle data, enhancing city management and traffic analysis efficiency.",
-  "description": "UrbanTrax AI streamlines vehicle tracking and management for businesses, offering real-time insights and analytics to enhance operational efficiency.",
+  "description": "UrbanTrax AI streamlines vehicle tracking and management for fleet operators, enhancing efficiency and decision-making with real-time data and analytics.",
   "robots": {
     "index": false
   },
