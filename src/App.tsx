@@ -31,6 +31,7 @@ export type Page =
 
 export default function App() {
   const [activePage, setActivePage] = useState<Page>('dashboard')
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   const pageInfo: Record<Page, { title: string; subtitle: string }> = {
     'dashboard': { title: 'Dashboard', subtitle: 'System overview and key metrics.' },
@@ -66,10 +67,31 @@ export default function App() {
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#0a0e1a' }}>
-      <Sidebar activePage={activePage} onNavigate={setActivePage} />
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <Navbar title={pageInfo[activePage].title} subtitle={pageInfo[activePage].subtitle} />
-        <main className="flex-1 overflow-auto p-6" style={{ backgroundColor: '#0a0e1a' }}>
+      {/* Mobile Sidebar Backdrop */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden" 
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <Sidebar 
+        activePage={activePage} 
+        onNavigate={(page) => {
+          setActivePage(page)
+          setIsSidebarOpen(false)
+        }} 
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
+
+      <div className="flex flex-col flex-1 overflow-hidden min-w-0">
+        <Navbar 
+          title={pageInfo[activePage].title} 
+          subtitle={pageInfo[activePage].subtitle} 
+          onMenuClick={() => setIsSidebarOpen(true)}
+        />
+        <main className="flex-1 overflow-auto p-4 md:p-6" style={{ backgroundColor: '#0a0e1a' }}>
           {renderPage()}
         </main>
       </div>
