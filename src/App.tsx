@@ -49,8 +49,8 @@ export default function App() {
 
   const renderPage = () => {
     switch (activePage) {
-      case 'dashboard': return <Dashboard />
-      case 'live-cameras': return <LiveCameras />
+      case 'dashboard': return <Dashboard onCameraSelect={(id) => console.log('Camera selected:', id)} />
+      case 'live-cameras': return <LiveCameras onSelectCamera={(id) => console.log('Camera selected:', id)} />
       case 'vehicle-intelligence': return <VehicleIntelligence />
       case 'anpr': return <ANPRPage />
       case 'trajectories': return <TrajectoriesPage />
