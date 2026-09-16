@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { getTrafficStats, getAlerts, getSystemHealth, TrafficStats, Alert, SystemHealth, Camera } from '../services/api';
 import { useApp } from '../context/AppContext';
+import InteractiveMap, { MapCamera } from '../components/InteractiveMap';
 
 type ChartFilter = '15m' | '1h' | 'today' | 'custom';
 
