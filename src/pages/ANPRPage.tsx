@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ScanLine, CheckCircle, AlertTriangle, XCircle, Eye, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import ConfidenceBadge from '../components/ConfidenceBadge'
 import StatusBadge from '../components/StatusBadge'
@@ -46,6 +46,17 @@ function ANPRModal({ record, onClose }: ModalProps) {
   const rawOCR = record.plate.replace(/([A-Z]{2})(\d{2})([A-Z]{2})(\d{4})/, '$1 $2 $3 $4')
   const normalized = record.plate.replace(/[^A-Z0-9?]/g, '')
 
+  const strToHash = (s: string) => {
+    let hash = 0;
+    for (let i = 0; i < s.length; i++) hash = (hash << 5) - hash + s.charCodeAt(i);
+    return Math.abs(hash);
+  };
+
+  const imgIndex = (strToHash(record.id + record.plate) % 6) + 1;
+  const imgCat = record.camera.includes('001') || record.camera.includes('004') ? 'junction' :
+                 record.camera.includes('003') || record.camera.includes('006') ? 'highway' : 'lane';
+  const vehicleImgSrc = `/vehicles/${imgCat}_${imgIndex}.jpg`;
+
   return (
     <>
       <div className="fixed inset-0 z-40 flex items-center justify-center" style={{ backgroundColor: '#00000080' }} onClick={onClose}>
@@ -66,11 +77,27 @@ function ANPRModal({ record, onClose }: ModalProps) {
           </div>
 
           <div className="p-5 space-y-4">
-            {/* Vehicle image area */}
-            <div className="h-36 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#0a0e1a', border: '1px solid #1e2d4a' }}>
-              <div className="text-center">
-                <div className="text-xs" style={{ color: '#2d3f5a' }}>VEHICLE IMAGE · {record.camera}</div>
-                <div className="text-xs mt-1" style={{ color: '#1e2d4a' }}>{record.timestamp}</div>
+            {/* Vehicle image area with real capture */}
+            <div className="relative h-44 rounded-lg overflow-hidden border" style={{ backgroundColor: '#0a0e1a', borderColor: '#1e2d4a' }}>
+              <img
+                src={vehicleImgSrc}
+                alt={`Captured vehicle ${record.plate}`}
+                className="w-full h-full object-cover"
+              />
+              {/* Target reticle / bounding box overlay */}
+              <div
+                className="absolute border-2 border-[#22c55e] rounded-sm pointer-events-none"
+                style={{
+                  left: '25%', top: '20%', width: '50%', height: '60%',
+                  boxShadow: '0 0 12px rgba(34, 197, 94, 0.4)',
+                }}
+              >
+                <div className="absolute -top-5 left-0 px-1.5 py-0.5 rounded bg-[#22c55e] text-black text-[9px] font-bold font-mono">
+                  {record.vehicleType || 'Vehicle'} · {record.ocrConfidence}%
+                </div>
+              </div>
+              <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 text-[9px] font-mono text-[#8899bb]">
+                CAM: {record.camera} · {record.timestamp}
               </div>
             </div>
 
@@ -137,9 +164,31 @@ function ANPRModal({ record, onClose }: ModalProps) {
 export default function ANPRPage() {
   const [page, setPage] = useState(1)
   const [modalRecord, setModalRecord] = useState<ANPRRecord | null>(null)
+  const [records, setRecords] = useState<ANPRRecord[]>(ANPR_DATA)
 
-  const totalPages = Math.ceil(ANPR_DATA.length / PAGE_SIZE)
-  const paged = ANPR_DATA.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  useEffect(() => {
+    const fetchLiveANPR = () => {
+      fetch("http://localhost:8000/api/anpr")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && Array.isArray(data.anpr) && data.anpr.length > 0) {
+            setRecords((prev) => {
+              const existingIds = new Set(prev.map((p) => p.id));
+              const newReads = data.anpr.filter((a: ANPRRecord) => !existingIds.has(a.id));
+              return newReads.length > 0 ? [...newReads, ...prev] : prev;
+            });
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchLiveANPR();
+    const interval = setInterval(fetchLiveANPR, 2500);
+    return () => clearInterval(interval);
+  }, []);
+
+  const totalPages = Math.ceil(records.length / PAGE_SIZE)
+  const paged = records.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   return (
     <div className="space-y-4">

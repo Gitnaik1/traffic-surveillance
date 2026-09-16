@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cameras, detectedVehicles, anprReads, eventTimeline } from '../data/mockData';
 
 // ── Bounding box annotations for detail view ──────────────────────────────
@@ -64,8 +64,37 @@ function DetailCVBox({ ann }: { ann: typeof detailAnnotations[number] }) {
 export default function CameraDetail({ cameraId, onBack }: { cameraId: string; onBack: () => void }) {
   const [activeTab, setActiveTab] = useState<'vehicles' | 'anpr' | 'timeline'>('vehicles');
   const [showOverlays, setShowOverlays] = useState(true);
+  const [liveFrame, setLiveFrame] = useState<string | null>(null);
 
   const cam = cameras.find(c => c.id === cameraId) || cameras[2]; // default CAM-003
+
+  useEffect(() => {
+    if (cam.status === 'offline') return;
+    let ws: WebSocket | null = null;
+    let isMounted = true;
+
+    try {
+      ws = new WebSocket(`ws://localhost:8000/ws/camera/${cam.id}`);
+      ws.onmessage = (event) => {
+        if (!isMounted) return;
+        try {
+          const data = JSON.parse(event.data);
+          if (data && data.frame) {
+            setLiveFrame(data.frame);
+          }
+        } catch (err) {
+          // ignore parsing glitch
+        }
+      };
+    } catch (e) {
+      // ignore
+    }
+
+    return () => {
+      isMounted = false;
+      if (ws) ws.close();
+    };
+  }, [cam.id, cam.status]);
 
   const statusDot = cam.status === 'online' ? 'bg-[#22c55e] animate-pulse-green' :
     cam.status === 'warning' ? 'bg-[#f59e0b] animate-pulse-amber' : 'bg-[#ef4444]';
@@ -126,6 +155,15 @@ export default function CameraDetail({ cameraId, onBack }: { cameraId: string; o
 
               {/* Video feed */}
               <div className="camera-feed relative" style={{ aspectRatio: '16/9' }}>
+                {/* Live video frame */}
+                {liveFrame && (
+                  <img
+                    src={liveFrame}
+                    alt={`Live stream ${cam.id}`}
+                    className="absolute inset-0 w-full h-full object-cover z-0"
+                  />
+                )}
+
                 {/* Scanline */}
                 <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden opacity-15">
                   <div style={{
@@ -135,22 +173,24 @@ export default function CameraDetail({ cameraId, onBack }: { cameraId: string; o
                   }} />
                 </div>
 
-                {/* Road SVG */}
-                <svg viewBox="0 0 100 60" className="absolute inset-0 w-full h-full opacity-25" preserveAspectRatio="none">
-                  <line x1="0" y1="60" x2="30" y2="28" stroke="#1e3050" strokeWidth="0.4" />
-                  <line x1="100" y1="60" x2="70" y2="28" stroke="#1e3050" strokeWidth="0.4" />
-                  <line x1="0" y1="60" x2="50" y2="32" stroke="#1e3050" strokeWidth="0.3" />
-                  <line x1="100" y1="60" x2="50" y2="32" stroke="#1e3050" strokeWidth="0.3" />
-                  {[38, 44, 50, 56].map(y => (
-                    <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#0f1a2e" strokeWidth="0.2" />
-                  ))}
-                  <rect x="47" y="38" width="6" height="1.5" fill="#0f1a2e" />
-                  <rect x="47" y="44" width="6" height="1.5" fill="#0f1a2e" />
-                  <rect x="47" y="50" width="6" height="1.5" fill="#0f1a2e" />
-                </svg>
+                {/* Road SVG (fallback when live frame not active) */}
+                {!liveFrame && (
+                  <svg viewBox="0 0 100 60" className="absolute inset-0 w-full h-full opacity-25" preserveAspectRatio="none">
+                    <line x1="0" y1="60" x2="30" y2="28" stroke="#1e3050" strokeWidth="0.4" />
+                    <line x1="100" y1="60" x2="70" y2="28" stroke="#1e3050" strokeWidth="0.4" />
+                    <line x1="0" y1="60" x2="50" y2="32" stroke="#1e3050" strokeWidth="0.3" />
+                    <line x1="100" y1="60" x2="50" y2="32" stroke="#1e3050" strokeWidth="0.3" />
+                    {[38, 44, 50, 56].map(y => (
+                      <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#0f1a2e" strokeWidth="0.2" />
+                    ))}
+                    <rect x="47" y="38" width="6" height="1.5" fill="#0f1a2e" />
+                    <rect x="47" y="44" width="6" height="1.5" fill="#0f1a2e" />
+                    <rect x="47" y="50" width="6" height="1.5" fill="#0f1a2e" />
+                  </svg>
+                )}
 
-                {/* CV annotations */}
-                {showOverlays && detailAnnotations.map((ann, i) => (
+                {/* CV annotations (fallback when live frame not active) */}
+                {showOverlays && !liveFrame && detailAnnotations.map((ann, i) => (
                   <DetailCVBox key={i} ann={ann} />
                 ))}
 

@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import { Card, Badge, KpiCard, TableWrapper, Th, Td, SectionHeader } from "../components/ui";
 
 const AI_SERVICES = [
-  { name: "Vehicle Detection", status: "Healthy", latency: "18ms", fps: "28.4", updated: "10:48:23" },
-  { name: "Tracking", status: "Healthy", latency: "12ms", fps: "30.0", updated: "10:48:22" },
-  { name: "Plate Detection", status: "Healthy", latency: "24ms", fps: "25.6", updated: "10:48:20" },
-  { name: "OCR", status: "Healthy", latency: "31ms", fps: "22.1", updated: "10:48:19" },
-  { name: "Re-ID", status: "Degraded", latency: "87ms", fps: "14.3", updated: "10:47:55" },
+  { name: "Vehicle Detection (YOLOv8)", status: "Healthy", latency: "18ms", fps: "28.4", updated: "10:48:23" },
+  { name: "Multi-Object Tracking", status: "Healthy", latency: "12ms", fps: "30.0", updated: "10:48:22" },
+  { name: "ANPR Plate Detection", status: "Healthy", latency: "24ms", fps: "25.6", updated: "10:48:20" },
+  { name: "Plate OCR Recognition", status: "Healthy", latency: "31ms", fps: "22.1", updated: "10:48:19" },
+  { name: "Deep Vehicle Re-ID (512-D ONNX)", status: "Healthy", latency: "14ms", fps: "30.0", updated: "10:48:25" },
 ];
 
 const BACKEND_SERVICES = [

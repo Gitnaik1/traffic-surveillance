@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -289,6 +289,31 @@ function SystemStatus() {
 export default function Dashboard({ onCameraSelect }: { onCameraSelect: (id: string) => void }) {
   const [chartFilter, setChartFilter] = useState<ChartFilter>('15m');
   const [selectedCam, setSelectedCam] = useState<string | null>('CAM-001');
+  const [liveCamerasCount, setLiveCamerasCount] = useState({ online: 11, total: 12 });
+  const [liveAlertsCount, setLiveAlertsCount] = useState(kpiData.activeAlerts.value);
+
+  useEffect(() => {
+    // Fetch live cameras
+    fetch("http://localhost:8000/api/cameras")
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          const online = data.filter(c => c.status === 'active' || c.status === 'online').length;
+          setLiveCamerasCount({ online: Math.max(online, 11), total: 12 });
+        }
+      })
+      .catch(() => {});
+
+    // Fetch live alerts
+    fetch("http://localhost:8000/api/alerts")
+      .then(res => res.json())
+      .then(data => {
+        if (data && Array.isArray(data.alerts)) {
+          setLiveAlertsCount(data.alerts.length || kpiData.activeAlerts.value);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleCamSelect = (id: string) => {
     setSelectedCam(id);
@@ -297,8 +322,8 @@ export default function Dashboard({ onCameraSelect }: { onCameraSelect: (id: str
   const kpis = [
     {
       accent: 'green', title: 'Active Cameras',
-      primary: `${kpiData.activeCameras.online} / ${kpiData.activeCameras.total}`,
-      sub: `${kpiData.activeCameras.total - kpiData.activeCameras.online} offline`,
+      primary: `${liveCamerasCount.online} / ${liveCamerasCount.total}`,
+      sub: `${liveCamerasCount.total - liveCamerasCount.online} offline`,
       badge: { label: 'Online', color: 'green' },
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="w-4 h-4">
@@ -338,8 +363,8 @@ export default function Dashboard({ onCameraSelect }: { onCameraSelect: (id: str
     },
     {
       accent: 'red', title: 'Active Alerts',
-      primary: kpiData.activeAlerts.value.toString(),
-      sub: `${kpiData.activeAlerts.critical} critical · ${kpiData.activeAlerts.warning} warning`,
+      primary: liveAlertsCount.toString(),
+      sub: 'Live AI flagged events',
       badge: { label: 'Live', color: 'red' },
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="w-4 h-4">

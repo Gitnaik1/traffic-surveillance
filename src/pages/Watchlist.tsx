@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Badge from "../components/Badge";
+
 
 interface WatchlistEntry {
   id: string;
@@ -469,6 +470,32 @@ export default function Watchlist() {
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState<WatchlistEntry | null>(null);
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
+  useEffect(() => {
+    fetch("http://localhost:8000/api/watchlist")
+      .then((res) => res.json())
+      .then((data) => {
+        // data.watchlist is: ["KA01AB1234", "MH12DE5678", "DL03C9999"]
+        if (data && data.watchlist) {
+          // Convert the backend plates into watchlist table entries
+          const backendEntries: WatchlistEntry[] = data.watchlist.map((plate: string, idx: number) => ({
+            id: `WL-BE-${idx + 1}`,
+            plate_number: plate,
+            vehicle_id: `VH-${1000 + idx}`,
+            description: `Tracked plate · ${plate}`,
+            reason: "Monitored via AI Surveillance Engine",
+            priority: "high",
+            created_at: new Date().toISOString().split("T")[0],
+            last_seen: "Just now",
+            last_camera: "CAM_01",
+            active: true,
+            alert_count: 1,
+          }));
+          // Update the table with live backend entries!
+          setEntries(backendEntries);
+        }
+      })
+      .catch((err) => console.error("Error fetching watchlist:", err));
+  }, []);
 
   const filtered = entries.filter((e) => {
     if (filterStatus === "active") return e.active;
@@ -478,6 +505,13 @@ export default function Watchlist() {
 
   const handleAdd = (entry: Partial<WatchlistEntry>) => {
     setEntries((prev) => [entry as WatchlistEntry, ...prev]);
+    if (entry.plate_number) {
+      fetch("http://localhost:8000/api/watchlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plate_number: entry.plate_number }),
+      }).catch((err) => console.error("Error adding to backend:", err));
+    }
   };
 
   return (

@@ -314,34 +314,41 @@ export default function Alerts() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [lastUpdate, setLastUpdate] = useState<string>("just now");
 
-  // Simulate live updates
+  // Connect to live backend AI alerts API
   useEffect(() => {
-    const interval = setInterval(() => {
-      const seconds = Math.floor(Math.random() * 30) + 5;
-      setLastUpdate(`${seconds} seconds ago`);
+    const fetchLiveAlerts = () => {
+      fetch("http://localhost:8000/api/alerts")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.alerts && Array.isArray(data.alerts) && data.alerts.length > 0) {
+            setLastUpdate("just now");
+            const backendAlerts: Alert[] = data.alerts.map((a: any, idx: number) => ({
+              id: `ALT-LIVE-${idx + 1}`,
+              type: a.type === "BLACK_LISTED_VEHICLE" ? "Blacklisted Vehicle" : a.type || "AI Flagged Vehicle",
+              severity: a.type === "BLACK_LISTED_VEHICLE" ? "critical" : "high",
+              vehicle_id: a.vehicle_id || `VH-AI-${idx + 1}`,
+              plate_number: a.plate_text || "UNKNOWN",
+              camera_id: a.camera_id || "CAM-001",
+              location: "Surveillance Zone",
+              timestamp: a.timestamp || new Date().toISOString().replace("T", " ").slice(0, 19),
+              status: "active",
+              confidence: 96,
+              isNew: true,
+            }));
 
-      // Occasionally add new alert
-      if (Math.random() < 0.3) {
-        const types = ["ANPR Mismatch", "Suspicious Vehicle", "Unusual Traffic"];
-        const newAlert: Alert = {
-          id: `ALT-${String(Math.floor(Math.random() * 9000) + 1000)}`,
-          type: types[Math.floor(Math.random() * types.length)],
-          severity: "medium",
-          vehicle_id: `VH-${Math.floor(Math.random() * 9000) + 1000}`,
-          plate_number: `KA${String(Math.floor(Math.random() * 99)).padStart(2, "0")}XY${Math.floor(Math.random() * 9000) + 1000}`,
-          camera_id: `CAM-00${Math.floor(Math.random() * 7) + 1}`,
-          location: ["MG Road", "Brigade Road", "Sarjapur Road", "Hosur Road"][Math.floor(Math.random() * 4)],
-          timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
-          status: "active",
-          confidence: Math.floor(Math.random() * 30) + 65,
-          isNew: true,
-        };
-        setAlerts((prev) => [newAlert, ...prev.slice(0, 19)]);
-        setTimeout(() => {
-          setAlerts((prev) => prev.map((a) => a.id === newAlert.id ? { ...a, isNew: false } : a));
-        }, 3000);
-      }
-    }, 8000);
+            // Merge with existing unique alerts
+            setAlerts((prev) => {
+              const existingIds = new Set(prev.map(p => p.id));
+              const newOnes = backendAlerts.filter(b => !existingIds.has(b.id));
+              return newOnes.length > 0 ? [...newOnes, ...prev] : prev;
+            });
+          }
+        })
+        .catch((err) => console.error("Error fetching live alerts:", err));
+    };
+
+    fetchLiveAlerts();
+    const interval = setInterval(fetchLiveAlerts, 3000);
     return () => clearInterval(interval);
   }, []);
 
