@@ -204,6 +204,15 @@ export default function InteractiveMap({
 
         markersRef.current[cam.id] = marker
       })
+
+      if (selectedCameraId && markersRef.current[selectedCameraId]) {
+        const selectedMarker = markersRef.current[selectedCameraId]
+        const latLng = selectedMarker.getLatLng()
+        map.setView(latLng, Math.max(map.getZoom(), 13), { animate: true })
+        selectedMarker.openPopup()
+      } else if (cameras.length > 0) {
+        map.setView([cameras[0].lat, cameras[0].lng], 13, { animate: true })
+      }
     } catch (err) {
       console.error('Marker rendering error:', err)
     }

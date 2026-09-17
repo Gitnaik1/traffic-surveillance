@@ -84,11 +84,11 @@ function CityMap({ cameras, onSelectCamera, selectedCam }: { cameras: Camera[]; 
   ];
 
   const mapCameras: MapCamera[] = cameras.length > 0
-    ? cameras.map((c, i) => ({
+    ? cameras.map((c: any, i) => ({
         id: c.id,
         name: c.name || `Junction Camera ${c.id}`,
-        lat: c.lat || BENGALURU_JUNCTIONS[i % BENGALURU_JUNCTIONS.length].lat,
-        lng: c.lng || BENGALURU_JUNCTIONS[i % BENGALURU_JUNCTIONS.length].lng,
+        lat: c.lat || c.latitude || BENGALURU_JUNCTIONS[i % BENGALURU_JUNCTIONS.length].lat,
+        lng: c.lng || c.longitude || BENGALURU_JUNCTIONS[i % BENGALURU_JUNCTIONS.length].lng,
         status: c.status === 'online' ? 'active' : c.status === 'warning' ? 'warning' : 'offline',
         vehicleCount: c.vehicles || Math.floor(Math.random() * 50) + 20,
         speedLimit: 60,
