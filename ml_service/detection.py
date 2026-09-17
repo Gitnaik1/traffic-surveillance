@@ -34,8 +34,9 @@ class VehicleDetector:
             print(f"[Detector] Loaded YOLO model: {model_name} (conf≥{confidence_threshold})")
         except Exception as e:
             print(f"[Detector] YOLO unavailable ({e}). Using OpenCV BGSub fallback.")
+            # Higher varThreshold = less sensitive to noise/shadows, fewer false positives
             self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
-                history=500, varThreshold=50, detectShadows=True
+                history=800, varThreshold=80, detectShadows=True
             )
 
     def detect_vehicles(self, frame) -> list[dict]:
@@ -52,25 +53,90 @@ class VehicleDetector:
                 cls_id = int(box.cls[0])
                 conf   = float(box.conf[0])
                 if cls_id in VEHICLE_CLASS_IDS and conf >= self.conf_thresh:
-                    # Person-1 native format is xyxy → convert to xywh (Fix 2 partial)
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
                     detections.append({
-                        "bbox":  [x1, y1, x2 - x1, y2 - y1],  # xywh
+                        "bbox":  [x1, y1, x2 - x1, y2 - y1],
                         "label": VEHICLE_CLASS_IDS[cls_id],
                         "conf":  conf,
                     })
         else:
+            # ── BGSub fallback with noise suppression ──────────────────────
             fg_mask = self.bg_subtractor.apply(frame)
-            _, thresh = cv2.threshold(fg_mask, 200, 255, cv2.THRESH_BINARY)
-            contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            # 1. Remove shadows (value 127) — keep only definite foreground (255)
+            _, fg_mask = cv2.threshold(fg_mask, 200, 255, cv2.THRESH_BINARY)
+
+            # 2. Morphological cleanup: remove tiny noise blobs, fill holes
+            kernel_open  = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+            kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+            kernel_dilate = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+            fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN,  kernel_open)   # remove noise
+            fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel_close)  # fill gaps
+            fg_mask = cv2.dilate(fg_mask, kernel_dilate, iterations=1)          # expand blobs
+
+            contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            fh, fw = frame.shape[:2]
+            raw_boxes = []
             for cnt in contours:
                 area = cv2.contourArea(cnt)
-                if area > 1200:
-                    x, y, bw, bh = cv2.boundingRect(cnt)
-                    label = "car" if bw * bh < 10000 else "bus"
-                    detections.append({"bbox": [x, y, bw, bh], "label": label, "conf": 0.75})
+                # 3. Minimum area — must be at least 0.3% of frame area (rejects tiny noise)
+                if area < fw * fh * 0.003:
+                    continue
+                x, y, bw, bh = cv2.boundingRect(cnt)
+                # 4. Aspect ratio filter — vehicles are roughly 0.3–4.0 wide:tall
+                aspect = bw / max(bh, 1)
+                if aspect < 0.3 or aspect > 5.0:
+                    continue
+                # 5. Reject blobs touching frame border (likely background artifacts)
+                margin = 5
+                if x < margin or y < margin or (x + bw) > (fw - margin) or (y + bh) > (fh - margin):
+                    continue
+                raw_boxes.append([x, y, bw, bh, area])
+
+            # 6. Non-Maximum Suppression — merge overlapping boxes (IoU > 0.3)
+            merged = self._nms(raw_boxes, iou_threshold=0.3)
+
+            # 7. Cap at 12 detections max — sorted by area descending
+            merged = sorted(merged, key=lambda b: b[2] * b[3], reverse=True)[:12]
+
+            for (x, y, bw, bh) in merged:
+                label = "truck" if bw * bh > fw * fh * 0.04 else ("bus" if bw * bh > fw * fh * 0.02 else "car")
+                detections.append({"bbox": [x, y, bw, bh], "label": label, "conf": 0.70})
 
         return detections
+
+    @staticmethod
+    def _nms(boxes: list, iou_threshold: float = 0.3) -> list:
+        """Non-Maximum Suppression: merge overlapping bounding boxes."""
+        if not boxes:
+            return []
+        # Sort by area descending so larger (more likely real) boxes win
+        boxes = sorted(boxes, key=lambda b: b[2] * b[3], reverse=True)
+        keep = []
+        suppressed = set()
+        for i, bi in enumerate(boxes):
+            if i in suppressed:
+                continue
+            keep.append(bi[:4])
+            xi, yi, wi, hi = bi[:4]
+            for j, bj in enumerate(boxes[i + 1:], start=i + 1):
+                if j in suppressed:
+                    continue
+                xj, yj, wj, hj = bj[:4]
+                # Compute intersection
+                ix = max(xi, xj)
+                iy = max(yi, yj)
+                iw = min(xi + wi, xj + wj) - ix
+                ih = min(yi + hi, yj + hj) - iy
+                if iw <= 0 or ih <= 0:
+                    continue
+                inter = iw * ih
+                union = wi * hi + wj * hj - inter
+                if union > 0 and inter / union > iou_threshold:
+                    suppressed.add(j)
+        return keep
+
 
     def crop_plate_region(self, frame, vehicle_bbox):
         """Estimate and crop lower 40% of vehicle bounding box for license plate detection."""
