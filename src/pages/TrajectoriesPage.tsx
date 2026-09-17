@@ -3,13 +3,21 @@ import { Search, MapPin, Clock, Route, Gauge, Shield, ChevronDown } from 'lucide
 import { getTrajectories, Trajectory } from '../services/api'
 import InteractiveMap, { MapCamera, MapTrajectoryPoint } from '../components/InteractiveMap'
 
+// Camera locations keyed by backend ID format (CAM-001, CAM-002, ...)
+// Real GPS coordinates for each Bengaluru camera location
 const CAMERA_LOCATIONS: { [key: string]: { name: string; lat: number; lng: number } } = {
-  CAM_01: { name: 'MG Road Junction', lat: 12.9716, lng: 77.5946 },
-  CAM_02: { name: 'Silk Board Flyover', lat: 12.9172, lng: 77.6228 },
-  CAM_03: { name: 'Indiranagar 100ft Rd', lat: 12.9784, lng: 77.6408 },
-  CAM_04: { name: 'Hebbal Flyover', lat: 13.0358, lng: 77.5970 },
-  CAM_05: { name: 'Electronic City Toll', lat: 12.8452, lng: 77.6602 },
-  CAM_06: { name: 'Whitefield Main Rd', lat: 12.9698, lng: 77.7499 },
+  'CAM-001': { name: 'MG Road Junction',        lat: 12.9716, lng: 77.5946 },
+  'CAM-002': { name: 'Yeshwanthpur Junction',    lat: 13.0213, lng: 77.5545 },
+  'CAM-003': { name: 'Hebbal Flyover',           lat: 13.0358, lng: 77.5970 },
+  'CAM-004': { name: 'Airport Road',             lat: 13.1009, lng: 77.5982 },
+  'CAM-005': { name: 'Electronic City Toll',     lat: 12.8452, lng: 77.6602 },
+  'CAM-006': { name: 'Silk Board Junction',      lat: 12.9172, lng: 77.6228 },
+  'CAM-007': { name: 'Koramangala 5th Block',    lat: 12.9352, lng: 77.6245 },
+  'CAM-008': { name: 'Whitefield Main Road',     lat: 12.9698, lng: 77.7499 },
+  'CAM-009': { name: 'Bannerghatta Road',        lat: 12.8745, lng: 77.5990 },
+  'CAM-010': { name: 'KR Circle',               lat: 12.9767, lng: 77.5713 },
+  'CAM-011': { name: 'Indiranagar 100ft Road',  lat: 12.9784, lng: 77.6408 },
+  'CAM-012': { name: 'Marathahalli Bridge',      lat: 12.9591, lng: 77.6972 },
 }
 
 export default function TrajectoriesPage() {
