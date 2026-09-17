@@ -69,30 +69,37 @@ function accentRgb(name: string) {
 // ── City Map ────────────────────────────────────────────────────────────────────────────────
 function CityMap({ cameras, onSelectCamera, selectedCam }: { cameras: Camera[]; onSelectCamera: (id: string) => void; selectedCam: string | null }) {
   const BENGALURU_JUNCTIONS: MapCamera[] = [
-    { id: 'CAM_01', name: 'MG Road / Brigade Rd Junction', lat: 12.9716, lng: 77.5946, status: 'active', vehicleCount: 42, speedLimit: 60 },
-    { id: 'CAM_02', name: 'Silk Board Junction & Flyover', lat: 12.9172, lng: 77.6228, status: 'warning', vehicleCount: 88, speedLimit: 50 },
-    { id: 'CAM_03', name: 'Indiranagar 100ft Road Corridor', lat: 12.9784, lng: 77.6408, status: 'active', vehicleCount: 31, speedLimit: 50 },
-    { id: 'CAM_04', name: 'Hebbal Flyover / Airport Highway', lat: 13.0358, lng: 77.5970, status: 'active', vehicleCount: 65, speedLimit: 70 },
-    { id: 'CAM_05', name: 'Electronic City Toll Expressway', lat: 12.8452, lng: 77.6602, status: 'active', vehicleCount: 54, speedLimit: 80 },
-    { id: 'CAM_06', name: 'Whitefield ITPB Main Gate', lat: 12.9698, lng: 77.7499, status: 'active', vehicleCount: 29, speedLimit: 50 },
-    { id: 'CAM_07', name: 'Marathahalli Outer Ring Road', lat: 12.9569, lng: 77.7011, status: 'warning', vehicleCount: 76, speedLimit: 60 },
-    { id: 'CAM_08', name: 'Koramangala Sony World Signal', lat: 12.9352, lng: 77.6245, status: 'active', vehicleCount: 48, speedLimit: 50 },
-    { id: 'CAM_09', name: 'Jayanagar 4th Block Circle', lat: 12.9293, lng: 77.5824, status: 'active', vehicleCount: 35, speedLimit: 40 },
-    { id: 'CAM_10', name: 'Majestic KSR Station Circle', lat: 12.9779, lng: 77.5728, status: 'active', vehicleCount: 92, speedLimit: 50 },
-    { id: 'CAM_11', name: 'Rajajinagar Navrang Circle', lat: 12.9926, lng: 77.5552, status: 'active', vehicleCount: 41, speedLimit: 50 },
-    { id: 'CAM_12', name: 'Banashankari TTMC Junction', lat: 12.9255, lng: 77.5738, status: 'active', vehicleCount: 50, speedLimit: 50 },
+    { id: 'CAM-001', name: 'MG Road / Brigade Rd Junction', lat: 12.9716, lng: 77.5946, status: 'active', vehicleCount: 42, speedLimit: 60 },
+    { id: 'CAM-002', name: 'Silk Board Junction & Flyover', lat: 12.9172, lng: 77.6228, status: 'warning', vehicleCount: 88, speedLimit: 50 },
+    { id: 'CAM-003', name: 'Indiranagar 100ft Road Corridor', lat: 12.9784, lng: 77.6408, status: 'active', vehicleCount: 31, speedLimit: 50 },
+    { id: 'CAM-004', name: 'Hebbal Flyover / Airport Highway', lat: 13.0358, lng: 77.5970, status: 'active', vehicleCount: 65, speedLimit: 70 },
+    { id: 'CAM-005', name: 'Electronic City Toll Expressway', lat: 12.8452, lng: 77.6602, status: 'active', vehicleCount: 54, speedLimit: 80 },
+    { id: 'CAM-006', name: 'Whitefield ITPB Main Gate', lat: 12.9698, lng: 77.7499, status: 'active', vehicleCount: 29, speedLimit: 50 },
+    { id: 'CAM-007', name: 'Marathahalli Outer Ring Road', lat: 12.9569, lng: 77.7011, status: 'warning', vehicleCount: 76, speedLimit: 60 },
+    { id: 'CAM-008', name: 'Koramangala Sony World Signal', lat: 12.9352, lng: 77.6245, status: 'active', vehicleCount: 48, speedLimit: 50 },
+    { id: 'CAM-009', name: 'Jayanagar 4th Block Circle', lat: 12.9293, lng: 77.5824, status: 'active', vehicleCount: 35, speedLimit: 40 },
+    { id: 'CAM-010', name: 'Majestic KSR Station Circle', lat: 12.9779, lng: 77.5728, status: 'active', vehicleCount: 92, speedLimit: 50 },
+    { id: 'CAM-011', name: 'Rajajinagar Navrang Circle', lat: 12.9926, lng: 77.5552, status: 'active', vehicleCount: 41, speedLimit: 50 },
+    { id: 'CAM-012', name: 'Banashankari TTMC Junction', lat: 12.9255, lng: 77.5738, status: 'active', vehicleCount: 50, speedLimit: 50 },
   ];
 
   const mapCameras: MapCamera[] = cameras.length > 0
-    ? cameras.map((c: any, i) => ({
-        id: c.id,
-        name: c.name || `Junction Camera ${c.id}`,
-        lat: c.lat || c.latitude || BENGALURU_JUNCTIONS[i % BENGALURU_JUNCTIONS.length].lat,
-        lng: c.lng || c.longitude || BENGALURU_JUNCTIONS[i % BENGALURU_JUNCTIONS.length].lng,
-        status: c.status === 'online' ? 'active' : c.status === 'warning' ? 'warning' : 'offline',
-        vehicleCount: c.vehicles || Math.floor(Math.random() * 50) + 20,
-        speedLimit: 60,
-      }))
+    ? cameras.map((c: any, i) => {
+        let lat = c.lat || c.latitude;
+        let lng = c.lng || c.longitude;
+        // Sanitize legacy or pixel coordinates (e.g. lat=52, lng=38) to real Bengaluru coordinates
+        if (!lat || lat > 30 || lat < 10) lat = BENGALURU_JUNCTIONS[i % BENGALURU_JUNCTIONS.length].lat;
+        if (!lng || lng < 70 || lng > 85) lng = BENGALURU_JUNCTIONS[i % BENGALURU_JUNCTIONS.length].lng;
+        return {
+          id: c.id,
+          name: c.name || `Junction Camera ${c.id}`,
+          lat,
+          lng,
+          status: c.status === 'online' ? 'active' : c.status === 'warning' ? 'warning' : 'offline',
+          vehicleCount: c.vehicles || Math.floor(Math.random() * 50) + 20,
+          speedLimit: 60,
+        };
+      })
     : BENGALURU_JUNCTIONS;
 
   return (
