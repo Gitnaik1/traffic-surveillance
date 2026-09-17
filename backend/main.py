@@ -1031,13 +1031,11 @@ class CameraStreamWorker:
 
         metadata = self.last_metadata
         if self.pipeline:
-            # Run detection on every 3rd frame so stream stays at 11+ FPS and CPU stays low
-            if frame_count % 3 == 0 or not self.last_metadata.get('detections'):
-                try:
-                    frame, metadata = self.pipeline.process_frame(frame)
-                    self.last_metadata = metadata
-                except Exception:
-                    pass
+            try:
+                frame, metadata = self.pipeline.process_frame(frame)
+                self.last_metadata = metadata
+            except Exception:
+                pass
 
         # Compress to JPEG with quality 65 (compact ~20-25KB payload for instant mobile/network loading)
         _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 65])

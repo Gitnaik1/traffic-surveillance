@@ -89,10 +89,22 @@ except ImportError:
     _SCIPY_AVAILABLE = False
 
 
-class _CentroidTracker:
-    """Original Person-2 centroid tracker — used only when supervision unavailable."""
+def _bbox_iou(box1, box2):
+    x1, y1, w1, h1 = box1
+    x2, y2, w2, h2 = box2
+    xi1 = max(x1, x2)
+    yi1 = max(y1, y2)
+    xi2 = min(x1 + w1, x2 + w2)
+    yi2 = min(y1 + h1, y2 + h2)
+    inter = max(0, xi2 - xi1) * max(0, yi2 - yi1)
+    union = w1 * h1 + w2 * h2 - inter
+    return inter / union if union > 0 else 0.0
 
-    def __init__(self, max_disappeared=20, max_distance=80):
+
+class _CentroidTracker:
+    """Robust centroid + IoU tracker with bounding box smoothing."""
+
+    def __init__(self, max_disappeared=35, max_distance=160):
         self.next_object_id = 1
         self.objects = {}
         self.bboxes = {}
@@ -103,15 +115,15 @@ class _CentroidTracker:
     def register(self, centroid, bbox):
         object_id = f"VEH_{self.next_object_id:03d}"
         self.objects[object_id] = centroid
-        self.bboxes[object_id] = bbox
+        self.bboxes[object_id] = list(bbox)
         self.disappeared[object_id] = 0
         self.next_object_id += 1
         return object_id
 
     def deregister(self, object_id):
-        del self.objects[object_id]
-        del self.bboxes[object_id]
-        del self.disappeared[object_id]
+        self.objects.pop(object_id, None)
+        self.bboxes.pop(object_id, None)
+        self.disappeared.pop(object_id, None)
 
     def update(self, detections):
         if not detections:
@@ -141,19 +153,37 @@ class _CentroidTracker:
             for row, col in zip(rows, cols):
                 if row in used_rows or col in used_cols:
                     continue
-                if D[row, col] > self.max_distance:
-                    continue
                 obj_id = object_ids[row]
-                self.objects[obj_id] = input_centroids[col]
-                self.bboxes[obj_id] = input_bboxes[col]
+                prev_bbox = self.bboxes[obj_id]
+                curr_bbox = input_bboxes[col]
+                iou = _bbox_iou(prev_bbox, curr_bbox)
+
+                # Match if either within distance OR bounding boxes overlap
+                if D[row, col] > self.max_distance and iou < 0.15:
+                    continue
+
+                # EMA smooth the bounding box to eliminate jitter
+                smoothed = [
+                    int(0.65 * curr_bbox[0] + 0.35 * prev_bbox[0]),
+                    int(0.65 * curr_bbox[1] + 0.35 * prev_bbox[1]),
+                    int(0.65 * curr_bbox[2] + 0.35 * prev_bbox[2]),
+                    int(0.65 * curr_bbox[3] + 0.35 * prev_bbox[3]),
+                ]
+                self.objects[obj_id] = (
+                    int(smoothed[0] + smoothed[2] / 2),
+                    int(smoothed[1] + smoothed[3] / 2),
+                )
+                self.bboxes[obj_id] = smoothed
                 self.disappeared[obj_id] = 0
                 used_rows.add(row)
                 used_cols.add(col)
+
             for row in set(range(D.shape[0])).difference(used_rows):
                 obj_id = object_ids[row]
                 self.disappeared[obj_id] += 1
                 if self.disappeared[obj_id] > self.max_disappeared:
                     self.deregister(obj_id)
+
             for col in set(range(D.shape[1])).difference(used_cols):
                 self.register(input_centroids[col], input_bboxes[col])
 

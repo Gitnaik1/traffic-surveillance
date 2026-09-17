@@ -8,6 +8,8 @@ OpenCV BGSub fallback is kept for environments without ultralytics.
 import cv2
 import numpy as np
 
+import os
+
 # COCO Vehicle Class IDs for YOLO (2: car, 3: motorcycle, 5: bus, 7: truck)
 VEHICLE_CLASS_IDS = {
     2: "car",
@@ -16,25 +18,39 @@ VEHICLE_CLASS_IDS = {
     7: "truck",
 }
 
-# ── Standardised defaults (Fix 3) ───────────────────────────────────────────
-DEFAULT_MODEL      = "yolov8m.pt"   # was yolov8n.pt in Person-2 — medium is more accurate
-DEFAULT_CONFIDENCE = 0.25           # balanced: Person-1=0.15 (too low), Person-2=0.35 (too high)
+# ── Standardised defaults ───────────────────────────────────────────────────
+_CURR_DIR = os.path.dirname(os.path.abspath(__file__))
+_LOCAL_CANDIDATES = [
+    os.path.join(_CURR_DIR, "yolov8n.pt"),
+    os.path.join(_CURR_DIR, "yolov8m.pt"),
+    os.path.join(os.getcwd(), "ml_service", "yolov8n.pt"),
+    os.path.join(os.getcwd(), "backend", "ml_service", "yolov8n.pt"),
+    "ml_service/yolov8n.pt",
+    "yolov8n.pt",
+]
+
+DEFAULT_MODEL      = next((p for p in _LOCAL_CANDIDATES if os.path.exists(p)), "yolov8n.pt")
+DEFAULT_CONFIDENCE = 0.35           # High precision to prevent false phantom detections
 
 
 class VehicleDetector:
-    def __init__(self, model_name=DEFAULT_MODEL, confidence_threshold=DEFAULT_CONFIDENCE):
+    def __init__(self, model_name=None, confidence_threshold=DEFAULT_CONFIDENCE):
         self.conf_thresh = confidence_threshold
         self.yolo_model  = None
         self.use_yolo    = False
 
+        # Find existing model file
+        target_model = model_name
+        if not target_model or not os.path.exists(target_model):
+            target_model = next((p for p in _LOCAL_CANDIDATES if os.path.exists(p)), target_model or "yolov8n.pt")
+
         try:
             from ultralytics import YOLO
-            self.yolo_model = YOLO(model_name)
+            self.yolo_model = YOLO(target_model)
             self.use_yolo   = True
-            print(f"[Detector] Loaded YOLO model: {model_name} (conf≥{confidence_threshold})")
+            print(f"[Detector] Loaded YOLO model: {target_model} (conf≥{confidence_threshold})")
         except Exception as e:
             print(f"[Detector] YOLO unavailable ({e}). Using OpenCV BGSub fallback.")
-            # Higher varThreshold = less sensitive to noise/shadows, fewer false positives
             self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
                 history=800, varThreshold=80, detectShadows=True
             )
@@ -48,17 +64,29 @@ class VehicleDetector:
         detections = []
 
         if self.use_yolo and self.yolo_model is not None:
-            results = self.yolo_model(frame, imgsz=320, conf=self.conf_thresh, verbose=False)[0]
+            # Run YOLO specifically targeting vehicle classes with NMS (iou=0.45) at 640px
+            results = self.yolo_model(
+                frame,
+                imgsz=640,
+                conf=self.conf_thresh,
+                iou=0.45,
+                classes=[2, 3, 5, 7],
+                verbose=False
+            )[0]
             for box in results.boxes:
                 cls_id = int(box.cls[0])
                 conf   = float(box.conf[0])
                 if cls_id in VEHICLE_CLASS_IDS and conf >= self.conf_thresh:
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    detections.append({
-                        "bbox":  [x1, y1, x2 - x1, y2 - y1],
-                        "label": VEHICLE_CLASS_IDS[cls_id],
-                        "conf":  conf,
-                    })
+                    w = x2 - x1
+                    h = y2 - y1
+                    # Filter out tiny artifacts (must be at least 20x15 pixels)
+                    if w >= 20 and h >= 15:
+                        detections.append({
+                            "bbox":  [x1, y1, w, h],
+                            "label": VEHICLE_CLASS_IDS[cls_id],
+                            "conf":  conf,
+                        })
         else:
             # ── BGSub fallback with noise suppression ──────────────────────
             fg_mask = self.bg_subtractor.apply(frame)

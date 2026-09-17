@@ -143,7 +143,7 @@ class SurveillancePipeline:
 
             if veh_id not in self.vehicle_records:
                 plate_crop, _ = self.detector.crop_plate_region(frame, bbox)
-                plate_text, conf, is_valid = self.ocr_engine.read_plate(plate_crop)
+                plate_text, conf, is_valid = self.ocr_engine.read_plate(plate_crop, vehicle_id=veh_id)
                 is_flagged = plate_text in self.watchlist
 
                 self.vehicle_records[veh_id] = {
@@ -176,20 +176,25 @@ class SurveillancePipeline:
             plate_display = rec["plate"]
             is_flagged    = rec["is_flagged"]
 
-            color = (0, 0, 255) if is_flagged else (0, 255, 0)
+            # GREEN (0, 230, 0) for normal vehicles, RED (0, 0, 255) ONLY for flagged watchlist vehicles
+            color = (0, 0, 255) if is_flagged else (0, 230, 0)
             cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
 
             label_str = f"{veh_id} | {plate_display}"
             if is_flagged:
                 label_str += " [FLAGGED!]"
 
-            cv2.rectangle(frame, (x, y - 25), (x + len(label_str) * 11, y), color, -1)
-            cv2.putText(frame, label_str, (x + 5, y - 7),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            # Label badge
+            badge_w = len(label_str) * 9 + 10
+            badge_h = 20
+            badge_y = max(0, y - badge_h)
+            cv2.rectangle(frame, (x, badge_y), (x + badge_w, badge_y + badge_h), color, -1)
+            cv2.putText(frame, label_str, (x + 4, badge_y + 14),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 0, 0) if not is_flagged else (255, 255, 255), 1, cv2.LINE_AA)
 
             frame_detections.append({
-                "vehicle_id": veh_id,        # always VEH_XXX (Fix 5)
-                "bbox":       list(bbox),    # always xywh  (Fix 2)
+                "vehicle_id": veh_id,
+                "bbox":       list(bbox),
                 "plate_text": plate_display,
                 "is_flagged": is_flagged,
             })
