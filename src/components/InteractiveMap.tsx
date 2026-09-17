@@ -68,11 +68,12 @@ export default function InteractiveMap({
   const [tileLayerType, setTileLayerType] = useState<'dark' | 'satellite' | 'street'>('dark')
   const [hasError, setHasError] = useState(false)
 
-  // All tile URLs are completely free with no API key required
+  // Tile providers — Stadia dark is free (localhost: no key, production: free tier)
+  const stadiaKey = (import.meta as any).env?.VITE_STADIA_KEY || ''
   const TILE_LAYERS = {
     dark: {
-      url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+      url: `https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png${stadiaKey ? `?api_key=${stadiaKey}` : ''}`,
+      attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       subdomains: 'abcd',
       maxZoom: 20,
     },
