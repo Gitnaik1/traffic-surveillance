@@ -1,71 +1,13 @@
 import { useState, useEffect } from "react";
 import Badge from "../components/Badge";
-import { api } from "../services/api";
+import { useApp } from "../context/AppContext";
+import { acknowledgeAllAlerts } from "../services/api";
+import type { Alert } from "../services/api";
 
-type AlertSeverity = "critical" | "high" | "medium" | "low";
-type AlertStatus = "active" | "acknowledged" | "resolved";
-
-interface Alert {
-  id: string;
-  type: string;
-  severity: AlertSeverity;
-  vehicle_id: string;
-  plate_number: string;
-  camera_id: string;
-  location: string;
-  timestamp: string;
-  status: AlertStatus;
-  confidence: number;
-  isNew?: boolean;
-}
-
-const INITIAL_ALERTS: Alert[] = [
-  {
-    id: "ALT-0041", type: "Blacklisted Vehicle", severity: "critical",
-    vehicle_id: "VH-8821", plate_number: "KA01AB1234", camera_id: "CAM-003",
-    location: "MG Road Junction", timestamp: "2025-09-16 10:35:08", status: "active", confidence: 97,
-  },
-  {
-    id: "ALT-0040", type: "ANPR Mismatch", severity: "high",
-    vehicle_id: "VH-5520", plate_number: "KA05CD5678", camera_id: "CAM-007",
-    location: "Hosur Road Toll", timestamp: "2025-09-16 10:28:45", status: "active", confidence: 83,
-  },
-  {
-    id: "ALT-0039", type: "Heavy Congestion", severity: "high",
-    vehicle_id: "—", plate_number: "—", camera_id: "CAM-002",
-    location: "Brigade Road", timestamp: "2025-09-16 10:15:22", status: "acknowledged", confidence: 99,
-  },
-  {
-    id: "ALT-0038", type: "Suspicious Vehicle", severity: "medium",
-    vehicle_id: "VH-3312", plate_number: "MH12EF9012", camera_id: "CAM-001",
-    location: "Residency Road", timestamp: "2025-09-16 09:58:11", status: "active", confidence: 74,
-  },
-  {
-    id: "ALT-0037", type: "Camera Offline", severity: "medium",
-    vehicle_id: "—", plate_number: "—", camera_id: "CAM-009",
-    location: "Koramangala 5th Block", timestamp: "2025-09-16 09:41:30", status: "active", confidence: 100,
-  },
-  {
-    id: "ALT-0036", type: "Unusual Traffic", severity: "low",
-    vehicle_id: "—", plate_number: "—", camera_id: "CAM-004",
-    location: "Bannerghatta Road", timestamp: "2025-09-16 09:10:00", status: "acknowledged", confidence: 68,
-  },
-  {
-    id: "ALT-0035", type: "Blacklisted Vehicle", severity: "critical",
-    vehicle_id: "VH-9910", plate_number: "DL3CAB2244", camera_id: "CAM-006",
-    location: "Outer Ring Road", timestamp: "2025-09-16 08:52:18", status: "resolved", confidence: 95,
-  },
-  {
-    id: "ALT-0034", type: "ANPR Mismatch", severity: "medium",
-    vehicle_id: "VH-2201", plate_number: "TN01GH3456", camera_id: "CAM-005",
-    location: "Sarjapur Road", timestamp: "2025-09-16 08:30:50", status: "resolved", confidence: 79,
-  },
-];
-
-function AlertDetailDrawer({ alert, onClose, onStatusChange }: {
+function AlertDetailDrawer({ alert, onClose, onAcknowledge }: {
   alert: Alert;
   onClose: () => void;
-  onStatusChange: (id: string, status: AlertStatus) => void;
+  onAcknowledge: (id: string) => void;
 }) {
   return (
     <div
@@ -113,7 +55,7 @@ function AlertDetailDrawer({ alert, onClose, onStatusChange }: {
                 {alert.id}
               </span>
               <Badge severity={alert.severity} />
-              <Badge severity={alert.status} />
+              <Badge severity={alert.acknowledged ? "resolved" : "active"} />
             </div>
             <div style={{ fontSize: 12, color: "#94a3b8" }}>{alert.type}</div>
           </div>
@@ -133,7 +75,7 @@ function AlertDetailDrawer({ alert, onClose, onStatusChange }: {
               justifyContent: "center",
             }}
           >
-            ×
+            ├ù
           </button>
         </div>
 
@@ -176,12 +118,11 @@ function AlertDetailDrawer({ alert, onClose, onStatusChange }: {
           {[
             ["Alert ID", alert.id],
             ["Type", alert.type],
-            ["Vehicle ID", alert.vehicle_id],
-            ["Plate Number", alert.plate_number],
-            ["Camera", alert.camera_id],
-            ["Location", alert.location],
+            ["Plate Number", alert.plate || "ΓÇö"],
+            ["Camera", alert.camera],
+            ["Location", alert.location || "ΓÇö"],
             ["Timestamp", alert.timestamp],
-            ["Confidence", `${alert.confidence}%`],
+            ["Subject", alert.subject],
           ].map(([key, val]) => (
             <div
               key={key}
@@ -206,26 +147,13 @@ function AlertDetailDrawer({ alert, onClose, onStatusChange }: {
             </div>
           ))}
 
-          {/* Confidence bar */}
-          <div style={{ marginTop: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-              <span style={{ fontSize: 11, color: "#64748b" }}>Detection Confidence</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: alert.confidence > 90 ? "#34d399" : alert.confidence > 70 ? "#fbbf24" : "#f87171" }}>
-                {alert.confidence}%
-              </span>
-            </div>
-            <div style={{ height: 4, background: "#1e2d45", borderRadius: 2 }}>
-              <div
-                style={{
-                  height: "100%",
-                  width: `${alert.confidence}%`,
-                  background: alert.confidence > 90 ? "#10b981" : alert.confidence > 70 ? "#f59e0b" : "#ef4444",
-                  borderRadius: 2,
-                  transition: "width 0.6s ease",
-                }}
-              />
-            </div>
-          </div>
+          {/* Message (if any) */}
+          {alert.message && (
+             <div style={{ marginTop: 12 }}>
+               <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>Message</div>
+               <div style={{ fontSize: 12, color: "#f1f5f9" }}>{alert.message}</div>
+             </div>
+          )}
         </div>
 
         {/* Actions */}
@@ -238,9 +166,9 @@ function AlertDetailDrawer({ alert, onClose, onStatusChange }: {
             flexWrap: "wrap",
           }}
         >
-          {alert.status === "active" && (
+          {!alert.acknowledged && (
             <button
-              onClick={() => onStatusChange(alert.id, "acknowledged")}
+              onClick={() => onAcknowledge(alert.id)}
               style={{
                 padding: "8px 14px",
                 borderRadius: 6,
@@ -269,102 +197,43 @@ function AlertDetailDrawer({ alert, onClose, onStatusChange }: {
           >
             Investigate
           </button>
-          {alert.status !== "resolved" && (
-            <button
-              onClick={() => onStatusChange(alert.id, "resolved")}
-              style={{
-                padding: "8px 14px",
-                borderRadius: 6,
-                border: "1px solid #10b981",
-                background: "rgba(16,185,129,0.12)",
-                color: "#34d399",
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Resolve
-            </button>
-          )}
-          <button
-            style={{
-              padding: "8px 14px",
-              borderRadius: 6,
-              border: "1px solid #f59e0b",
-              background: "rgba(245,158,11,0.12)",
-              color: "#fbbf24",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Add to Watchlist
-          </button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Main Page ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 export default function Alerts() {
-  const [alerts, setAlerts] = useState<Alert[]>(INITIAL_ALERTS);
+  const { alerts, alertsLoading, dismissAlert, refreshAlerts } = useApp();
   const [selected, setSelected] = useState<Alert | null>(null);
   const [filterSeverity, setFilterSeverity] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [lastUpdate, setLastUpdate] = useState<string>("just now");
-
-  const loadAlerts = async () => {
-    try {
-      const data = await api.getAlerts();
-      const formatted = (data.alerts || []).map((a: any) => {
-        const existing = INITIAL_ALERTS.find(e => e.id === a.id?.toString());
-        if (existing) return existing;
-        return {
-          id: `ALT-${a.id}`,
-          type: a.type,
-          severity: a.severity || 'medium',
-          vehicle_id: `VH-???`,
-          plate_number: a.plate_text,
-          camera_id: a.camera_id,
-          location: a.location || 'Unknown',
-          timestamp: typeof a.timestamp === 'number' ? new Date(a.timestamp * 1000).toISOString().replace("T", " ").slice(0, 19) : a.timestamp,
-          status: 'active' as const,
-          confidence: 95,
-          isNew: false
-        };
-      });
-      setAlerts(formatted);
-      setLastUpdate("just now");
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    loadAlerts();
-    const interval = setInterval(loadAlerts, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleStatusChange = (id: string, status: AlertStatus) => {
-    setAlerts((prev) => prev.map((a) => a.id === id ? { ...a, status } : a));
-    if (selected?.id === id) setSelected((s) => s ? { ...s, status } : null);
-  };
 
   const counts = {
     critical: alerts.filter((a) => a.severity === "critical").length,
-    high: alerts.filter((a) => a.severity === "high").length,
-    medium: alerts.filter((a) => a.severity === "medium").length,
-    low: alerts.filter((a) => a.severity === "low").length,
+    warning: alerts.filter((a) => a.severity === "warning").length,
+    info: alerts.filter((a) => a.severity === "info").length,
   };
 
   const filtered = alerts.filter((a) => {
     if (filterSeverity !== "all" && a.severity !== filterSeverity) return false;
-    if (filterStatus !== "all" && a.status !== filterStatus) return false;
+    if (filterStatus === "acknowledged" && !a.acknowledged) return false;
+    if (filterStatus === "active" && a.acknowledged) return false;
     return true;
   });
+
+  const handleAcknowledgeAll = async () => {
+    await acknowledgeAllAlerts();
+    refreshAlerts();
+  };
+
+  if (alertsLoading) {
+    return (
+      <div style={{ padding: "24px", color: "#94a3b8" }}>Loading alerts...</div>
+    );
+  }
 
   return (
     <div style={{ padding: "24px", overflowY: "auto", height: "100%", background: "#0b0f1a" }}>
@@ -396,16 +265,22 @@ export default function Alerts() {
             LIVE
           </span>
         </div>
-        <span style={{ fontSize: 12, color: "#64748b" }}>WebSocket connected · New alert received {lastUpdate}</span>
+        <span style={{ fontSize: 12, color: "#64748b" }}>WebSocket connected ┬╖ Showing live alerts</span>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          {(["active", "acknowledged", "resolved"] as AlertStatus[]).map((s) => (
-            <span key={s} style={{ fontSize: 11, color: "#64748b" }}>
-              <span style={{ color: s === "active" ? "#f87171" : s === "acknowledged" ? "#60a5fa" : "#34d399", fontWeight: 600 }}>
-                {alerts.filter((a) => a.status === s).length}
-              </span>{" "}
-              {s}
-            </span>
-          ))}
+          <button
+            onClick={handleAcknowledgeAll}
+            style={{
+              padding: "4px 10px",
+              borderRadius: 5,
+              border: "1px solid #1e2d45",
+              background: "transparent",
+              color: "#94a3b8",
+              fontSize: 11,
+              cursor: "pointer",
+            }}
+          >
+            Acknowledge All
+          </button>
         </div>
       </div>
 
@@ -413,9 +288,8 @@ export default function Alerts() {
       <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
         {[
           { label: "Critical", count: counts.critical, color: "#ef4444", glow: "rgba(239,68,68,0.2)" },
-          { label: "High", count: counts.high, color: "#f59e0b", glow: "rgba(245,158,11,0.2)" },
-          { label: "Medium", count: counts.medium, color: "#06b6d4", glow: "rgba(6,182,212,0.2)" },
-          { label: "Low", count: counts.low, color: "#94a3b8", glow: "rgba(148,163,184,0.15)" },
+          { label: "Warning", count: counts.warning, color: "#f59e0b", glow: "rgba(245,158,11,0.2)" },
+          { label: "Info", count: counts.info, color: "#3b82f6", glow: "rgba(59,130,246,0.2)" },
         ].map((k) => (
           <div
             key={k.label}
@@ -456,9 +330,8 @@ export default function Alerts() {
         {[
           { label: "All", value: "all", type: "severity" },
           { label: "Critical", value: "critical", type: "severity" },
-          { label: "High", value: "high", type: "severity" },
-          { label: "Medium", value: "medium", type: "severity" },
-          { label: "Low", value: "low", type: "severity" },
+          { label: "Warning", value: "warning", type: "severity" },
+          { label: "Info", value: "info", type: "severity" },
         ].map((f) => (
           <button
             key={f.value}
@@ -479,7 +352,7 @@ export default function Alerts() {
           </button>
         ))}
         <div style={{ width: 1, height: 18, background: "#1e2d45" }} />
-        {(["all", "active", "acknowledged", "resolved"] as const).map((s) => (
+        {(["all", "active", "acknowledged"] as const).map((s) => (
           <button
             key={s}
             onClick={() => setFilterStatus(s)}
@@ -516,7 +389,7 @@ export default function Alerts() {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#0f1829" }}>
-              {["Alert ID", "Type", "Severity", "Vehicle", "Plate", "Camera", "Location", "Timestamp", "Status", "Action"].map((col) => (
+              {["Alert ID", "Type", "Severity", "Subject", "Plate", "Camera", "Location", "Timestamp", "Status", "Action"].map((col) => (
                 <th
                   key={col}
                   style={{
@@ -541,44 +414,61 @@ export default function Alerts() {
             {filtered.map((alert, i) => (
               <tr
                 key={alert.id}
-                className={alert.isNew ? "alert-new" : ""}
                 onClick={() => setSelected(alert)}
                 style={{
-                  background: alert.isNew ? "rgba(37,99,235,0.08)" : i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)",
+                  background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)",
                   cursor: "pointer",
                   transition: "background 0.15s",
-                  borderLeft: alert.severity === "critical" ? "2px solid #ef4444" : "2px solid transparent",
+                  borderLeft: alert.severity === "critical" ? "2px solid #ef4444" : alert.severity === "warning" ? "2px solid #f59e0b" : "2px solid transparent",
+                  opacity: alert.acknowledged ? 0.6 : 1,
                 }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "rgba(37,99,235,0.06)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = alert.isNew ? "rgba(37,99,235,0.08)" : i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)"; }}
               >
                 <td style={{ padding: "10px 14px", fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#60a5fa", whiteSpace: "nowrap" }}>
-                  {alert.isNew && <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#10b981", marginRight: 6, verticalAlign: "middle" }} />}
                   {alert.id}
                 </td>
                 <td style={{ padding: "10px 14px", fontSize: 12, color: "#f1f5f9", whiteSpace: "nowrap" }}>{alert.type}</td>
                 <td style={{ padding: "10px 14px" }}><Badge severity={alert.severity} /></td>
-                <td style={{ padding: "10px 14px", fontSize: 11, color: "#94a3b8", fontFamily: "JetBrains Mono, monospace" }}>{alert.vehicle_id}</td>
-                <td style={{ padding: "10px 14px", fontSize: 12, color: "#f1f5f9", fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>{alert.plate_number}</td>
-                <td style={{ padding: "10px 14px", fontSize: 12, color: "#22d3ee", fontFamily: "JetBrains Mono, monospace" }}>{alert.camera_id}</td>
-                <td style={{ padding: "10px 14px", fontSize: 12, color: "#94a3b8", whiteSpace: "nowrap" }}>{alert.location}</td>
+                <td style={{ padding: "10px 14px", fontSize: 11, color: "#94a3b8", fontFamily: "JetBrains Mono, monospace" }}>{alert.subject}</td>
+                <td style={{ padding: "10px 14px", fontSize: 12, color: "#f1f5f9", fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>{alert.plate || "ΓÇö"}</td>
+                <td style={{ padding: "10px 14px", fontSize: 12, color: "#22d3ee", fontFamily: "JetBrains Mono, monospace" }}>{alert.camera}</td>
+                <td style={{ padding: "10px 14px", fontSize: 12, color: "#94a3b8", whiteSpace: "nowrap" }}>{alert.location || "ΓÇö"}</td>
                 <td style={{ padding: "10px 14px", fontSize: 11, color: "#64748b", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap" }}>{alert.timestamp.slice(11)}</td>
-                <td style={{ padding: "10px 14px" }}><Badge severity={alert.status} /></td>
+                <td style={{ padding: "10px 14px" }}><Badge severity={alert.acknowledged ? "resolved" : "active"} /></td>
                 <td style={{ padding: "10px 14px" }}>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setSelected(alert); }}
-                    style={{
-                      padding: "4px 10px",
-                      borderRadius: 5,
-                      border: "1px solid #1e2d45",
-                      background: "transparent",
-                      color: "#94a3b8",
-                      fontSize: 11,
-                      cursor: "pointer",
-                    }}
-                  >
-                    View →
-                  </button>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setSelected(alert); }}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: 5,
+                        border: "1px solid #1e2d45",
+                        background: "transparent",
+                        color: "#94a3b8",
+                        fontSize: 11,
+                        cursor: "pointer",
+                      }}
+                    >
+                      View ΓåÆ
+                    </button>
+                    {!alert.acknowledged && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); dismissAlert(alert.id); }}
+                        style={{
+                          padding: "4px 10px",
+                          borderRadius: 5,
+                          border: "1px solid #1e2d45",
+                          background: "transparent",
+                          color: "#34d399",
+                          fontSize: 11,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Ack.
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -591,7 +481,7 @@ export default function Alerts() {
         <AlertDetailDrawer
           alert={selected}
           onClose={() => setSelected(null)}
-          onStatusChange={handleStatusChange}
+          onAcknowledge={(id) => dismissAlert(id)}
         />
       )}
     </div>

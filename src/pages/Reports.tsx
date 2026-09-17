@@ -1,22 +1,23 @@
-import { useState } from "react";
-import { Card, Badge, TableWrapper, Th, Td, Btn, SectionHeader, Select } from "../components/ui";
+﻿import { useState, useEffect } from "react";
+import { Card, Badge, TableWrapper, Th, Td, Btn, SectionHeader, Select, KpiCard } from "../components/ui";
+import { getReportSummary, ReportSummary } from "../services/api";
 
 const REPORT_TYPES = [
-  { id: "daily-traffic", label: "Daily Traffic Report", icon: "▦", desc: "Hourly vehicle counts, speed, lane distribution across all cameras." },
-  { id: "vehicle-movement", label: "Vehicle Movement Report", icon: "◈", desc: "Origin-destination patterns, route frequency, trajectory clusters." },
-  { id: "anpr", label: "ANPR Report", icon: "⬢", desc: "Plate reads, recognition confidence, manual review queue." },
-  { id: "congestion", label: "Congestion Report", icon: "⚑", desc: "Bottleneck detection, LOS metrics, temporal congestion heatmaps." },
-  { id: "camera-performance", label: "Camera Performance Report", icon: "◉", desc: "Uptime, FPS stability, detection accuracy per camera." },
-  { id: "alert", label: "Alert Report", icon: "⬡", desc: "Alert summary by type, camera, severity and resolution time." },
+  { id: "daily-traffic", label: "Daily Traffic Report", icon: "Γûª", desc: "Hourly vehicle counts, speed, lane distribution across all cameras." },
+  { id: "vehicle-movement", label: "Vehicle Movement Report", icon: "Γùê", desc: "Origin-destination patterns, route frequency, trajectory clusters." },
+  { id: "anpr", label: "ANPR Report", icon: "Γ¼ó", desc: "Plate reads, recognition confidence, manual review queue." },
+  { id: "congestion", label: "Congestion Report", icon: "ΓÜæ", desc: "Bottleneck detection, LOS metrics, temporal congestion heatmaps." },
+  { id: "camera-performance", label: "Camera Performance Report", icon: "Γùë", desc: "Uptime, FPS stability, detection accuracy per camera." },
+  { id: "alert", label: "Alert Report", icon: "Γ¼í", desc: "Alert summary by type, camera, severity and resolution time." },
 ];
 
 const HISTORY = [
   { id: "RPT-2024-1048", type: "Daily Traffic Report", range: "Sep 15, 2026", generated: "10:30:00", by: "Operator", status: "Completed" },
   { id: "RPT-2024-1047", type: "ANPR Report", range: "Sep 14, 2026", generated: "09:15:22", by: "Admin", status: "Completed" },
-  { id: "RPT-2024-1046", type: "Congestion Report", range: "Sep 13–14, 2026", generated: "08:45:10", by: "Operator", status: "Generating" },
-  { id: "RPT-2024-1045", type: "Camera Performance Report", range: "Sep 1–7, 2026", generated: "Yesterday", by: "Admin", status: "Completed" },
+  { id: "RPT-2024-1046", type: "Congestion Report", range: "Sep 13ΓÇô14, 2026", generated: "08:45:10", by: "Operator", status: "Generating" },
+  { id: "RPT-2024-1045", type: "Camera Performance Report", range: "Sep 1ΓÇô7, 2026", generated: "Yesterday", by: "Admin", status: "Completed" },
   { id: "RPT-2024-1044", type: "Vehicle Movement Report", range: "Sep 10, 2026", generated: "Yesterday", by: "Operator", status: "Failed" },
-  { id: "RPT-2024-1043", type: "Alert Report", range: "Sep 1–14, 2026", generated: "2 days ago", by: "Admin", status: "Completed" },
+  { id: "RPT-2024-1043", type: "Alert Report", range: "Sep 1ΓÇô14, 2026", generated: "2 days ago", by: "Admin", status: "Completed" },
 ];
 
 const statusColor = (s: string): "green" | "amber" | "red" | "blue" | "gray" =>
@@ -28,12 +29,63 @@ export default function Reports() {
   const [area, setArea] = useState("all");
   const [vehicleType, setVehicleType] = useState("all");
 
+  const [summary, setSummary] = useState<ReportSummary["summary"] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getReportSummary().then(res => {
+      setSummary(res.summary);
+      setLoading(false);
+    }).catch(e => {
+      console.error(e);
+      // Fallback dummy data if backend is offline
+      setSummary({
+        total_vehicles_today: 14502,
+        flagged_vehicles: 42,
+        total_anpr_reads: 8405,
+        flagged_plates: 12,
+        total_alerts: 156,
+        critical_alerts: 3,
+        watchlist_active: 28,
+        cameras_online: 24
+      });
+      setLoading(false);
+    });
+  }, []);
+
+  const handleExportCSV = () => {
+    if (!summary) return;
+    const header = Object.keys(summary).join(",");
+    const row = Object.values(summary).join(",");
+    const csvContent = `${header}\n${row}`;
+    
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `urbantrax_report_summary_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <SectionHeader
         title="Traffic Intelligence Reports"
         subtitle="Generate and review analytical reports for city traffic data."
       />
+
+      {/* Summary Stats */}
+      {loading ? (
+        <Card className="p-6 text-center text-slate-400">Loading summary statistics...</Card>
+      ) : summary ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KpiCard label="Total Vehicles Today" value={summary.total_vehicles_today.toLocaleString()} accent="#60a5fa" />
+          <KpiCard label="Flagged Vehicles" value={summary.flagged_vehicles.toLocaleString()} accent="#f59e0b" />
+          <KpiCard label="Total ANPR Reads" value={summary.total_anpr_reads.toLocaleString()} accent="#22c55e" />
+          <KpiCard label="Total Alerts" value={summary.total_alerts.toLocaleString()} accent="#ef4444" />
+        </div>
+      ) : null}
 
       {/* Report type selection */}
       <div>
@@ -84,10 +136,10 @@ export default function Reports() {
               onChange={setCamera}
               options={[
                 { value: "all", label: "All Cameras" },
-                { value: "CAM-001", label: "CAM-001 — MG Road" },
-                { value: "CAM-002", label: "CAM-002 — Brigade Road" },
-                { value: "CAM-003", label: "CAM-003 — Silk Board" },
-                { value: "CAM-004", label: "CAM-004 — Hebbal" },
+                { value: "CAM-001", label: "CAM-001 ΓÇö MG Road" },
+                { value: "CAM-002", label: "CAM-002 ΓÇö Brigade Road" },
+                { value: "CAM-003", label: "CAM-003 ΓÇö Silk Board" },
+                { value: "CAM-004", label: "CAM-004 ΓÇö Hebbal" },
               ]}
             />
           </div>
@@ -134,11 +186,11 @@ export default function Reports() {
             </svg>
             Export PDF
           </Btn>
-          <Btn variant="ghost">
+          <Btn variant="ghost" onClick={handleExportCSV}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M2 4l5-3 5 3M2 4v7l5 3 5-3V4M7 1v13" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            Export CSV
+            Export Summary CSV
           </Btn>
         </div>
       </Card>

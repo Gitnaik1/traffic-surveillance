@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { cameras } from '../data/mockData';
+import { useState, useEffect } from 'react';
+import { useApp } from '../context/AppContext';
+import CameraDetail from './CameraDetail';
 
 type ViewMode = 'grid' | 'list';
 type StatusFilter = 'all' | 'online' | 'offline' | 'warning';
 type TrafficFilter = 'all' | 'clear' | 'low' | 'moderate' | 'high';
 
-// ── Simulated CV Annotations ──────────────────────────────────────────────
+// ΓöÇΓöÇ Simulated CV Annotations ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 const cameraAnnotations: Record<string, Array<{
   x: number; y: number; w: number; h: number;
   id: string; type: string; conf: number; plate?: string; color: 'blue' | 'green' | 'amber'
@@ -29,7 +30,7 @@ const cameraAnnotations: Record<string, Array<{
   ],
 };
 
-// ── CV overlay box component ─────────────────────────────────────────────
+// ΓöÇΓöÇ CV overlay box component ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 function CVBox({ ann }: { ann: typeof cameraAnnotations[string][number] }) {
   const borderColor = ann.color === 'blue' ? 'rgba(59,130,246,0.85)' :
     ann.color === 'green' ? 'rgba(34,197,94,0.85)' : 'rgba(245,158,11,0.85)';
@@ -80,18 +81,52 @@ function CVBox({ ann }: { ann: typeof cameraAnnotations[string][number] }) {
   );
 }
 
-// ── Camera Card ──────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Camera Card ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 function CameraCard({ cam, onSelect, showOverlays }: {
-  cam: typeof cameras[number];
+  cam: any;
   onSelect: () => void;
   showOverlays: boolean;
 }) {
-  const statusInfo = {
+  const [liveFrame, setLiveFrame] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (cam.status === 'offline') return;
+    let ws: WebSocket | null = null;
+    let isMounted = true;
+
+    try {
+      ws = new WebSocket(`ws://localhost:8000/ws/camera/${cam.id}`);
+      ws.onmessage = (event) => {
+        if (!isMounted) return;
+        try {
+          const data = JSON.parse(event.data);
+          if (data && data.frame) {
+            setLiveFrame(data.frame);
+          }
+        } catch (err) {
+          // ignore parsing glitch
+        }
+      };
+      ws.onerror = () => {
+        // fallback gracefully
+      };
+    } catch (e) {
+      // ignore
+    }
+
+    return () => {
+      isMounted = false;
+      if (ws) ws.close();
+    };
+  }, [cam.id, cam.status]);
+
+  const statusConfig: Record<string, { label: string; dotClass: string; textClass: string; borderClass: string }> = {
     online: { label: 'LIVE', dotClass: 'bg-[#22c55e] animate-pulse-green', textClass: 'text-[#4ade80]', borderClass: 'border-[#1a2a40]' },
     offline: { label: 'OFFLINE', dotClass: 'bg-[#ef4444]', textClass: 'text-[#f87171]', borderClass: 'border-[#2a1a1a]' },
     warning: { label: 'WARNING', dotClass: 'bg-[#f59e0b] animate-pulse-amber', textClass: 'text-[#fbbf24]', borderClass: 'border-[#2a2010]' },
     connecting: { label: 'CONNECTING', dotClass: 'bg-[#3b82f6] animate-pulse', textClass: 'text-[#60a5fa]', borderClass: 'border-[#1a2440]' },
-  }[cam.status] ?? { label: 'UNKNOWN', dotClass: 'bg-[#4d607a]', textClass: 'text-[#4d607a]', borderClass: 'border-[#1a2a40]' };
+  };
+  const statusInfo = statusConfig[cam.status] ?? { label: 'UNKNOWN', dotClass: 'bg-[#4d607a]', textClass: 'text-[#4d607a]', borderClass: 'border-[#1a2a40]' };
 
   const trafficBadge: Record<string, string> = {
     high: 'traffic-high', moderate: 'traffic-moderate', low: 'traffic-low', clear: 'traffic-clear',
@@ -107,6 +142,15 @@ function CameraCard({ cam, onSelect, showOverlays }: {
     >
       {/* Video viewport */}
       <div className="camera-feed relative" style={{ aspectRatio: '16/9' }}>
+        {/* Live video frame */}
+        {liveFrame && !isOffline && (
+          <img
+            src={liveFrame}
+            alt={`Live stream ${cam.id}`}
+            className="absolute inset-0 w-full h-full object-cover z-0"
+          />
+        )}
+
         {/* Scanline effect */}
         {!isOffline && (
           <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden opacity-20">
@@ -128,7 +172,7 @@ function CameraCard({ cam, onSelect, showOverlays }: {
             </div>
             <div className="text-[10px] text-[#f87171] font-mono font-medium">CAMERA OFFLINE</div>
             <div className="text-[9px] text-[#4d607a] mt-1">Unable to connect to camera</div>
-            <button className="mt-2 text-[9px] border border-[#3b82f6] text-[#60a5fa] px-2 py-0.5 rounded hover:bg-[#1a2a40] transition-colors">
+            <button className="mt-2 text-[9px] border border-[#3b82f6] text-[#60a5fa] px-2 py-0.5 rounded hover:bg-[#1a2a40] transition-colors" onClick={(e) => e.stopPropagation()}>
               Retry
             </button>
           </div>
@@ -136,17 +180,17 @@ function CameraCard({ cam, onSelect, showOverlays }: {
 
         {cam.status === 'warning' && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 bg-[#1a1000] border border-[#f59e0b] rounded px-2 py-0.5">
-            <span className="text-[8px] font-mono text-[#fbbf24]">⚠ SIGNAL DEGRADED</span>
+            <span className="text-[8px] font-mono text-[#fbbf24]">ΓÜá SIGNAL DEGRADED</span>
           </div>
         )}
 
-        {/* CV Annotations */}
-        {!isOffline && showOverlays && annotations.map((ann, i) => (
+        {/* CV Annotations (only fallback when live AI frame is not streaming) */}
+        {!isOffline && showOverlays && !liveFrame && annotations.map((ann, i) => (
           <CVBox key={i} ann={ann} />
         ))}
 
-        {/* Grid lines (perspective road view) */}
-        {!isOffline && (
+        {/* Grid lines (perspective road view - only fallback when live AI frame is not streaming) */}
+        {!isOffline && !liveFrame && (
           <svg viewBox="0 0 100 60" className="absolute inset-0 w-full h-full opacity-20" preserveAspectRatio="none">
             <line x1="0" y1="60" x2="35" y2="30" stroke="#1a2a40" strokeWidth="0.3" />
             <line x1="100" y1="60" x2="65" y2="30" stroke="#1a2a40" strokeWidth="0.3" />
@@ -209,12 +253,12 @@ function CameraCard({ cam, onSelect, showOverlays }: {
         </div>
         <div className="flex items-center justify-between mt-2">
           <div className="flex items-center gap-3 text-[9px] text-[#4d607a] font-mono">
-            <span>{cam.fps > 0 ? `${cam.fps} FPS` : '— FPS'}</span>
+            <span>{cam.fps > 0 ? `${cam.fps} FPS` : 'ΓÇö FPS'}</span>
             <span>{cam.vehicles > 0 ? `${cam.vehicles} vehicles` : 'No vehicles'}</span>
           </div>
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button className="text-[9px] text-[#60a5fa] hover:text-[#3b82f6] px-1.5 py-0.5 border border-[#1a2a40] rounded hover:border-[#3b82f6] transition-colors">
-              Details
+            <button className="text-[9px] text-[#60a5fa] hover:text-[#3b82f6] px-1.5 py-0.5 border border-[#1a2a40] rounded hover:border-[#3b82f6] transition-colors" onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+              View Feed
             </button>
           </div>
         </div>
@@ -223,8 +267,8 @@ function CameraCard({ cam, onSelect, showOverlays }: {
   );
 }
 
-// ── Camera Row (list view) ────────────────────────────────────────────────
-function CameraRow({ cam, onSelect }: { cam: typeof cameras[number]; onSelect: () => void }) {
+// ΓöÇΓöÇ Camera Row (list view) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+function CameraRow({ cam, onSelect }: { cam: any; onSelect: () => void }) {
   const statusColor = cam.status === 'online' ? 'text-[#4ade80]' : cam.status === 'warning' ? 'text-[#fbbf24]' : 'text-[#f87171]';
   const statusDot = cam.status === 'online' ? 'bg-[#22c55e] animate-pulse-green' : cam.status === 'warning' ? 'bg-[#f59e0b]' : 'bg-[#ef4444]';
   const trafficColor = cam.traffic === 'high' ? 'text-[#f87171]' : cam.traffic === 'moderate' ? 'text-[#fbbf24]' : 'text-[#4ade80]';
@@ -240,26 +284,58 @@ function CameraRow({ cam, onSelect }: { cam: typeof cameras[number]; onSelect: (
       <td className="px-4 py-3 text-[11px] text-[#8899b4]">{cam.name}</td>
       <td className="px-4 py-3 text-[11px] text-[#4d607a]">{cam.location}</td>
       <td className="px-4 py-3"><span className={`text-[10px] font-mono uppercase ${statusColor}`}>{cam.status}</span></td>
-      <td className="px-4 py-3 text-[11px] font-mono text-[#4d607a]">{cam.fps > 0 ? `${cam.fps}` : '—'}</td>
+      <td className="px-4 py-3 text-[11px] font-mono text-[#4d607a]">{cam.fps > 0 ? `${cam.fps}` : 'ΓÇö'}</td>
       <td className="px-4 py-3"><span className={`text-[10px] font-mono capitalize ${trafficColor}`}>{cam.traffic}</span></td>
       <td className="px-4 py-3 text-[11px] font-mono text-[#8899b4]">{cam.vehicles}</td>
       <td className="px-4 py-3">
-        <button className="text-[9px] text-[#60a5fa] border border-[#1a2a40] rounded px-2 py-0.5 hover:border-[#3b82f6] transition-colors">
-          View
+        <button className="text-[9px] text-[#60a5fa] border border-[#1a2a40] rounded px-2 py-0.5 hover:border-[#3b82f6] transition-colors" onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+          View Feed
         </button>
       </td>
     </tr>
   );
 }
 
-// ── Main Live Cameras ──────────────────────────────────────────────────────
-export default function LiveCameras({ onSelectCamera }: { onSelectCamera: (id: string) => void }) {
+// ΓöÇΓöÇ Main Live Cameras ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+interface LiveCamerasProps {
+  onSelectCamera?: (id: string) => void;
+  selectedCameraId?: string | null;
+  onClearSelectedCamera?: () => void;
+}
+
+export default function LiveCameras({
+  onSelectCamera,
+  selectedCameraId: externalSelectedId = null,
+  onClearSelectedCamera,
+}: LiveCamerasProps) {
+  const { cameras, backendOnline, camerasLoading } = useApp();
+  const [selectedCamId, setSelectedCamId] = useState<string | null>(externalSelectedId);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [trafficFilter, setTrafficFilter] = useState<TrafficFilter>('all');
   const [search, setSearch] = useState('');
   const [showOverlays, setShowOverlays] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
+
+  useEffect(() => {
+    if (externalSelectedId !== undefined) {
+      setSelectedCamId(externalSelectedId);
+    }
+  }, [externalSelectedId]);
+
+  const handleSelectCamera = (id: string) => {
+    setSelectedCamId(id);
+    if (onSelectCamera) onSelectCamera(id);
+  };
+
+  const handleBack = () => {
+    setSelectedCamId(null);
+    if (onClearSelectedCamera) onClearSelectedCamera();
+  };
+
+  if (selectedCamId) {
+    return <CameraDetail cameraId={selectedCamId} onBack={handleBack} />;
+  }
 
   const filtered = cameras.filter(c => {
     if (statusFilter !== 'all' && c.status !== statusFilter) return false;
@@ -276,6 +352,11 @@ export default function LiveCameras({ onSelectCamera }: { onSelectCamera: (id: s
   return (
     <div className="flex-1 overflow-y-auto scrollbar-hidden bg-[#080d18]">
       <div className="p-5 space-y-4">
+        {!backendOnline && (
+          <div className="bg-[#2a1a1a] border border-[#ef4444] text-[#f87171] px-4 py-2 rounded-md text-sm mb-4">
+            Backend offline ΓÇö showing cached/mock data
+          </div>
+        )}
 
         {/* Stats row */}
         <div className="flex items-center gap-4 text-[11px] font-mono">
@@ -295,8 +376,8 @@ export default function LiveCameras({ onSelectCamera }: { onSelectCamera: (id: s
             <span className="text-[#f87171] font-semibold">{offlineCount}</span>
           </div>
           <div className="ml-auto flex items-center gap-1.5 text-[#4d607a]">
-            {autoRefresh && <span className="text-[#22c55e] animate-pulse-green">● AUTO-REFRESH</span>}
-            <span className="text-[#2a3a50]">· Updated just now</span>
+            {autoRefresh && <span className="text-[#22c55e] animate-pulse-green">ΓùÅ AUTO-REFRESH</span>}
+            <span className="text-[#2a3a50]">┬╖ Updated just now</span>
           </div>
         </div>
 
@@ -390,46 +471,58 @@ export default function LiveCameras({ onSelectCamera }: { onSelectCamera: (id: s
           Showing {filtered.length} of {cameras.length} cameras
         </div>
 
-        {/* Grid view */}
-        {viewMode === 'grid' && (
+        {camerasLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map(cam => (
-              <CameraCard key={cam.id} cam={cam} showOverlays={showOverlays} onSelect={() => onSelectCamera(cam.id)} />
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+              <div key={i} className="bg-[#0c1220] border border-[#1a2a40] rounded-lg h-48 animate-pulse flex items-center justify-center">
+                <span className="text-[#4d607a] text-xs">Loading...</span>
+              </div>
             ))}
-            {filtered.length === 0 && (
-              <div className="col-span-full flex flex-col items-center justify-center py-16 text-[#4d607a]">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1} className="w-10 h-10 mb-3 opacity-40">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
-                </svg>
-                <div className="text-sm">No cameras match your filters</div>
+          </div>
+        ) : (
+          <>
+            {/* Grid view */}
+            {viewMode === 'grid' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filtered.map(cam => (
+                  <CameraCard key={cam.id} cam={cam} showOverlays={showOverlays} onSelect={() => handleSelectCamera(cam.id)} />
+                ))}
+                {filtered.length === 0 && (
+                  <div className="col-span-full flex flex-col items-center justify-center py-16 text-[#4d607a]">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1} className="w-10 h-10 mb-3 opacity-40">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+                    </svg>
+                    <div className="text-sm">No cameras match your filters</div>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        {/* List view */}
-        {viewMode === 'list' && (
-          <div className="bg-[#0c1220] border border-[#1a2a40] rounded-lg overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[#1a2a40]">
-                  {['Camera ID', 'Name', 'Location', 'Status', 'FPS', 'Traffic', 'Vehicles', ''].map(h => (
-                    <th key={h} className="px-4 py-2.5 text-left text-[9px] text-[#4d607a] uppercase tracking-wider font-semibold">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(cam => (
-                  <CameraRow key={cam.id} cam={cam} onSelect={() => onSelectCamera(cam.id)} />
-                ))}
-              </tbody>
-            </table>
-            {filtered.length === 0 && (
-              <div className="text-center py-12 text-[#4d607a] text-sm">No cameras match your filters</div>
+            {/* List view */}
+            {viewMode === 'list' && (
+              <div className="bg-[#0c1220] border border-[#1a2a40] rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-[#1a2a40]">
+                      {['Camera ID', 'Name', 'Location', 'Status', 'FPS', 'Traffic', 'Vehicles', ''].map(h => (
+                        <th key={h} className="px-4 py-2.5 text-left text-[9px] text-[#4d607a] uppercase tracking-wider font-semibold">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(cam => (
+                      <CameraRow key={cam.id} cam={cam} onSelect={() => handleSelectCamera(cam.id)} />
+                    ))}
+                  </tbody>
+                </table>
+                {filtered.length === 0 && (
+                  <div className="text-center py-12 text-[#4d607a] text-sm">No cameras match your filters</div>
+                )}
+              </div>
             )}
-          </div>
+          </>
         )}
       </div>
     </div>

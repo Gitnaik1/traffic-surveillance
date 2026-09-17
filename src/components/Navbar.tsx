@@ -5,9 +5,11 @@ interface Props {
   title: string
   subtitle: string
   onMenuClick?: () => void
+  backendOnline?: boolean
+  alertCount?: number
 }
 
-export default function Navbar({ title, subtitle, onMenuClick }: Props) {
+export default function Navbar({ title, subtitle, onMenuClick, backendOnline = false, alertCount = 0 }: Props) {
   const [time, setTime] = useState(new Date())
 
   useEffect(() => {
@@ -54,6 +56,17 @@ export default function Navbar({ title, subtitle, onMenuClick }: Props) {
 
       {/* System status */}
       <div className="hidden sm:flex items-center gap-1.5">
+        {backendOnline ? (
+          <>
+            <CheckCircle size={12} color="#22c55e" />
+            <span className="text-xs font-medium" style={{ color: '#22c55e' }}>Backend Online</span>
+          </>
+        ) : (
+          <>
+            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-xs font-medium" style={{ color: '#f87171' }}>Backend Offline</span>
+          </>
+        )}
         <CheckCircle size={12} color="#22c55e" />
         <span className="text-xs font-medium" style={{ color: '#22c55e' }}>
           All Systems Online
@@ -66,12 +79,14 @@ export default function Navbar({ title, subtitle, onMenuClick }: Props) {
       {/* Notifications */}
       <button className="relative" style={{ color: '#4a6080' }}>
         <Bell size={16} />
-        <span
-          className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-white"
-          style={{ backgroundColor: '#ef4444', fontSize: '9px' }}
-        >
-          3
-        </span>
+        {alertCount > 0 && (
+          <span
+            className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-white"
+            style={{ backgroundColor: '#ef4444', fontSize: '9px' }}
+          >
+            {alertCount > 9 ? '9+' : alertCount}
+          </span>
+        )}
       </button>
 
       {/* Timestamp */}

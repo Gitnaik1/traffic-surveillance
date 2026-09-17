@@ -1,25 +1,16 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import {
   Card, Badge, KpiCard, TableWrapper, Th, Td, Btn, SectionHeader,
-  InputField, Input, Select,
+  InputField, Input, Select, Toggle
 } from "../components/ui";
-
-const CAMERAS = [
-  { id: "CAM-001", name: "MG Road Junction", location: "MG Road", status: "Online", fps: 24, lastSeen: "10:48:23", vehiclesToday: 1284, health: "Healthy" },
-  { id: "CAM-002", name: "Brigade Road Signal", location: "Brigade Road", status: "Online", fps: 30, lastSeen: "10:48:21", vehiclesToday: 976, health: "Healthy" },
-  { id: "CAM-003", name: "Silk Board Flyover", location: "Silk Board", status: "Warning", fps: 18, lastSeen: "10:45:10", vehiclesToday: 2341, health: "Degraded" },
-  { id: "CAM-004", name: "Hebbal Interchange", location: "Hebbal", status: "Online", fps: 25, lastSeen: "10:48:22", vehiclesToday: 1587, health: "Healthy" },
-  { id: "CAM-005", name: "Koramangala 80ft Rd", location: "Koramangala", status: "Offline", fps: 0, lastSeen: "09:12:44", vehiclesToday: 0, health: "Critical" },
-  { id: "CAM-006", name: "Electronic City Toll", location: "Electronic City", status: "Online", fps: 30, lastSeen: "10:48:20", vehiclesToday: 3102, health: "Healthy" },
-  { id: "CAM-007", name: "Whitefield Signal", location: "Whitefield", status: "Online", fps: 24, lastSeen: "10:48:19", vehiclesToday: 891, health: "Healthy" },
-  { id: "CAM-008", name: "Yeshwanthpur Circle", location: "Yeshwanthpur", status: "Warning", fps: 12, lastSeen: "10:46:55", vehiclesToday: 443, health: "Degraded" },
-];
+import { useApp } from "../context/AppContext";
+import { updateCamera } from "../services/api";
 
 const statusColor = (s: string): "green" | "red" | "amber" | "gray" =>
-  s === "Online" ? "green" : s === "Offline" ? "red" : "amber";
+  s === "online" ? "green" : s === "offline" ? "red" : "amber";
 
 const healthColor = (h: string): "green" | "red" | "amber" | "gray" =>
-  h === "Healthy" ? "green" : h === "Critical" ? "red" : "amber";
+  h === "online" ? "green" : h === "offline" ? "red" : "amber";
 
 interface AddCameraForm {
   cameraId: string; name: string; location: string;
@@ -28,28 +19,43 @@ interface AddCameraForm {
 }
 
 export default function CameraManagement() {
+  const { cameras, refreshCameras, camerasLoading } = useApp();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [showAdd, setShowAdd] = useState(false);
-  const [showDetail, setShowDetail] = useState<typeof CAMERAS[0] | null>(null);
+  const [showDetail, setShowDetail] = useState<typeof cameras[0] | null>(null);
   const [form, setForm] = useState<AddCameraForm>({
     cameraId: "", name: "", location: "",
     latitude: "", longitude: "", streamUrl: "",
     cameraType: "Fixed", status: "Online",
   });
 
-  const filtered = CAMERAS.filter((c) => {
+  const handleToggleEnable = async (id: string, currentEnabled: number) => {
+    try {
+      await updateCamera(id, { enabled: currentEnabled === 1 ? false : true });
+      refreshCameras();
+    } catch (e) {
+      console.error(e);
+      alert("Failed to update camera status. Backend might be offline.");
+    }
+  };
+
+  const filtered = cameras.filter((c) => {
     const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.id.toLowerCase().includes(search.toLowerCase()) ||
       c.location.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "All" || c.status === statusFilter;
+    const matchStatus = statusFilter === "All" || c.status.toLowerCase() === statusFilter.toLowerCase();
     return matchSearch && matchStatus;
   });
 
-  const total = CAMERAS.length;
-  const online = CAMERAS.filter((c) => c.status === "Online").length;
-  const offline = CAMERAS.filter((c) => c.status === "Offline").length;
-  const warning = CAMERAS.filter((c) => c.status === "Warning").length;
+  const total = cameras.length;
+  const online = cameras.filter((c) => c.status === "online").length;
+  const offline = cameras.filter((c) => c.status === "offline").length;
+  const warning = cameras.filter((c) => c.status === "warning").length;
+
+  if (camerasLoading && cameras.length === 0) {
+    return <div className="text-white p-6">Loading cameras...</div>;
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -112,9 +118,11 @@ export default function CameraManagement() {
 
       {/* Table */}
       <Card>
-        <div className="px-4 py-3 border-b" style={{ borderColor: "#1e2d45" }}>
-          <span className="text-sm font-semibold" style={{ color: "#f1f5f9" }}>Camera Registry</span>
-          <span className="ml-2 text-xs" style={{ color: "#64748b" }}>{filtered.length} cameras</span>
+        <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "#1e2d45" }}>
+          <div>
+            <span className="text-sm font-semibold" style={{ color: "#f1f5f9" }}>Camera Registry</span>
+            <span className="ml-2 text-xs" style={{ color: "#64748b" }}>{filtered.length} cameras</span>
+          </div>
         </div>
         <TableWrapper>
           <thead>
@@ -123,10 +131,10 @@ export default function CameraManagement() {
               <Th>Camera Name</Th>
               <Th>Location</Th>
               <Th>Status</Th>
+              <Th>Enabled</Th>
               <Th>FPS</Th>
-              <Th>Last Seen</Th>
               <Th>Vehicles Today</Th>
-              <Th>Health</Th>
+              <Th>Traffic Level</Th>
               <Th>Actions</Th>
             </tr>
           </thead>
@@ -143,13 +151,17 @@ export default function CameraManagement() {
                 <Td>
                   <Badge color={statusColor(cam.status)}>
                     <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: "currentColor" }} />
-                    {cam.status}
+                    <span className="capitalize">{cam.status}</span>
                   </Badge>
                 </Td>
-                <Td mono>{cam.fps > 0 ? `${cam.fps} FPS` : "—"}</Td>
-                <Td mono>{cam.lastSeen}</Td>
-                <Td mono>{cam.vehiclesToday.toLocaleString()}</Td>
-                <Td><Badge color={healthColor(cam.health)}>{cam.health}</Badge></Td>
+                <Td>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Toggle checked={cam.enabled === 1} onChange={() => handleToggleEnable(cam.id, cam.enabled)} />
+                  </div>
+                </Td>
+                <Td mono>{cam.fps > 0 ? `${Math.round(cam.fps)} FPS` : "ΓÇö"}</Td>
+                <Td mono>{(cam.vehicles || 0).toLocaleString()}</Td>
+                <Td><Badge color={cam.traffic === "high" ? "red" : cam.traffic === "moderate" ? "amber" : "green"}><span className="capitalize">{cam.traffic || "clear"}</span></Badge></Td>
                 <Td>
                   <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                     <Btn size="sm" variant="secondary" onClick={() => setShowDetail(cam)}>View</Btn>
@@ -158,6 +170,13 @@ export default function CameraManagement() {
                 </Td>
               </tr>
             ))}
+            {filtered.length === 0 && (
+              <tr>
+                <Td colSpan={9}>
+                  <div className="text-center py-6 text-slate-500 text-sm">No cameras found.</div>
+                </Td>
+              </tr>
+            )}
           </tbody>
         </TableWrapper>
       </Card>
@@ -215,7 +234,7 @@ export default function CameraManagement() {
 
       {/* Camera Detail Modal */}
       {showDetail && (
-        <Modal title={`${showDetail.id} — ${showDetail.name}`} onClose={() => setShowDetail(null)} wide>
+        <Modal title={`${showDetail.id} ΓÇö ${showDetail.name}`} onClose={() => setShowDetail(null)} wide>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Preview */}
             <div>
@@ -224,7 +243,7 @@ export default function CameraManagement() {
                 style={{ background: "#0b0f1a", border: "1px solid #1e2d45", aspectRatio: "16/9" }}
               >
                 <div className="text-center">
-                  <div className="text-2xl mb-2">📷</div>
+                  <div className="text-2xl mb-2">≡ƒô╖</div>
                   <p className="text-xs" style={{ color: "#64748b" }}>Camera Preview</p>
                   <p className="text-xs mt-1" style={{ color: "#3b82f6" }}>{showDetail.id}</p>
                 </div>
@@ -233,7 +252,9 @@ export default function CameraManagement() {
                 <Btn size="sm">View Camera</Btn>
                 <Btn size="sm" variant="secondary">Edit</Btn>
                 <Btn size="sm" variant="ghost">Restart</Btn>
-                <Btn size="sm" variant="danger">Disable</Btn>
+                <Btn size="sm" variant="danger" onClick={() => { handleToggleEnable(showDetail.id, showDetail.enabled); setShowDetail(null); }}>
+                  {showDetail.enabled === 1 ? "Disable" : "Enable"}
+                </Btn>
               </div>
             </div>
 
@@ -243,14 +264,14 @@ export default function CameraManagement() {
                 {[
                   { label: "Camera ID", value: showDetail.id },
                   { label: "Location", value: showDetail.location },
-                  { label: "FPS", value: `${showDetail.fps} FPS` },
-                  { label: "Last Seen", value: showDetail.lastSeen },
-                  { label: "Vehicles Today", value: showDetail.vehiclesToday.toLocaleString() },
-                  { label: "Uptime", value: "99.2%" },
+                  { label: "FPS", value: `${Math.round(showDetail.fps)} FPS` },
+                  { label: "Status", value: showDetail.status },
+                  { label: "Vehicles Today", value: (showDetail.vehicles || 0).toLocaleString() },
+                  { label: "Traffic", value: showDetail.traffic || "clear" },
                 ].map((item) => (
                   <div key={item.label} className="rounded-lg p-3" style={{ background: "#0b0f1a", border: "1px solid #1e2d45" }}>
                     <div className="text-xs" style={{ color: "#64748b" }}>{item.label}</div>
-                    <div className="text-sm font-semibold mt-1" style={{ color: "#f1f5f9", fontFamily: "var(--font-mono)" }}>{item.value}</div>
+                    <div className="text-sm font-semibold mt-1 capitalize" style={{ color: "#f1f5f9", fontFamily: "var(--font-mono)" }}>{item.value}</div>
                   </div>
                 ))}
               </div>
@@ -260,10 +281,10 @@ export default function CameraManagement() {
                 <div className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#64748b" }}>Health Metrics</div>
                 <div className="flex flex-col gap-2">
                   {[
-                    { label: "Stream", ok: showDetail.status === "Online" },
-                    { label: "Detection", ok: showDetail.health === "Healthy" },
-                    { label: "Tracking", ok: showDetail.health === "Healthy" },
-                    { label: "OCR", ok: showDetail.health !== "Critical" },
+                    { label: "Stream", ok: showDetail.status === "online" },
+                    { label: "Detection", ok: showDetail.status !== "offline" },
+                    { label: "Tracking", ok: showDetail.status !== "offline" },
+                    { label: "OCR", ok: showDetail.status !== "offline" },
                     { label: "API Connection", ok: true },
                   ].map((m) => (
                     <div key={m.label} className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: "#0b0f1a" }}>

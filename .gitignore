@@ -3,6 +3,7 @@ venv/
 __pycache__/
 *.pyc
 *.mp4
+*.db
 outputs/
 sample_videos/
 yolov8*.pt
@@ -11,6 +12,8 @@ yolov8*.pt
 # Data
 data/sample_videos/*
 !data/sample_videos/.gitkeep
+data/vehicle_reid_dataset/
+*.ses
 
 # Node / Frontend
 node_modules/

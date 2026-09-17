@@ -2,50 +2,31 @@ import { useState, useEffect } from 'react'
 import { ScanLine, CheckCircle, AlertTriangle, XCircle, Eye, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import ConfidenceBadge from '../components/ConfidenceBadge'
 import StatusBadge from '../components/StatusBadge'
-import { api } from '../services/api'
-
-interface ANPRRecord {
-  id: string
-  timestamp: string
-  plate: string
-  camera: string
-  location: string
-  vehicleType: string
-  ocrConfidence: number
-  vehicleId: string
-  status: 'Verified' | 'Low Confidence' | 'Unreadable' | 'Manual Review'
-}
-
-const ANPR_DATA: ANPRRecord[] = [
-  { id: 'ANPR-8821', timestamp: '10:59:43', plate: 'KA01AB1234', camera: 'CAM-004', location: 'MG Road Junction', vehicleType: 'SUV', ocrConfidence: 97.3, vehicleId: 'UTX-VH-00124', status: 'Verified' },
-  { id: 'ANPR-8820', timestamp: '10:58:11', plate: 'MH12CD5678', camera: 'CAM-007', location: 'Residency Rd', vehicleType: 'Sedan', ocrConfidence: 89.1, vehicleId: 'UTX-VH-00125', status: 'Verified' },
-  { id: 'ANPR-8819', timestamp: '10:57:04', plate: '??01??1234', camera: 'CAM-002', location: 'Brigade Rd', vehicleType: 'Motorcycle', ocrConfidence: 38.2, vehicleId: '—', status: 'Unreadable' },
-  { id: 'ANPR-8818', timestamp: '10:55:30', plate: 'AP39IJ1122', camera: 'CAM-006', location: 'Hosur Rd', vehicleType: 'Auto', ocrConfidence: 73.9, vehicleId: 'UTX-VH-00129', status: 'Low Confidence' },
-  { id: 'ANPR-8817', timestamp: '10:54:18', plate: 'TN09EF3456', camera: 'CAM-009', location: 'Outer Ring Rd', vehicleType: 'Bus', ocrConfidence: 98.6, vehicleId: 'UTX-VH-00127', status: 'Verified' },
-  { id: 'ANPR-8816', timestamp: '10:52:44', plate: 'TS07RS990?', camera: 'CAM-002', location: 'Domlur Flyover', vehicleType: 'Motorcycle', ocrConfidence: 61.4, vehicleId: '—', status: 'Manual Review' },
-  { id: 'ANPR-8815', timestamp: '10:51:09', plate: 'GJ05KL3344', camera: 'CAM-003', location: 'Ulsoor Rd', vehicleType: 'Car', ocrConfidence: 93.7, vehicleId: 'UTX-VH-00130', status: 'Verified' },
-  { id: 'ANPR-8814', timestamp: '10:49:55', plate: 'KL08TU1234', camera: 'CAM-007', location: 'Koramangala', vehicleType: 'Car', ocrConfidence: 95.2, vehicleId: 'UTX-VH-00134', status: 'Verified' },
-  { id: 'ANPR-8813', timestamp: '10:47:22', plate: 'KA01AB1234', camera: 'CAM-004', location: 'Richmond Rd', vehicleType: 'SUV', ocrConfidence: 96.1, vehicleId: 'UTX-VH-00124', status: 'Verified' },
-  { id: 'ANPR-8812', timestamp: '10:44:19', plate: 'RJ14MN5566', camera: 'CAM-008', location: 'Jayanagar 4th Block', vehicleType: 'SUV', ocrConfidence: 80.3, vehicleId: 'UTX-VH-00131', status: 'Low Confidence' },
-]
+import { getAnprReads, AnprRead } from '../services/api'
+import { useApp } from '../context/AppContext'
 
 const PAGE_SIZE = 8
 
-const KPI = [
-  { label: 'Plates Detected', value: '1,842', icon: <ScanLine size={18} />, color: '#3b82f6', sub: 'Last hour' },
-  { label: 'Successful OCR', value: '1,729', icon: <CheckCircle size={18} />, color: '#22c55e', sub: '93.9% of detections' },
-  { label: 'OCR Accuracy', value: '93.9%', icon: <CheckCircle size={18} />, color: '#06b6d4', sub: '+1.2% vs yesterday' },
-  { label: 'Unknown / Unreadable', value: '113', icon: <XCircle size={18} />, color: '#ef4444', sub: '6.1% failure rate' },
-]
-
 interface ModalProps {
-  record: ANPRRecord
+  record: AnprRead
   onClose: () => void
 }
 
 function ANPRModal({ record, onClose }: ModalProps) {
   const rawOCR = record.plate.replace(/([A-Z]{2})(\d{2})([A-Z]{2})(\d{4})/, '$1 $2 $3 $4')
   const normalized = record.plate.replace(/[^A-Z0-9?]/g, '')
+  const status = record.confidence > 85 ? 'Verified' : record.confidence > 60 ? 'Low Confidence' : 'Unreadable'
+
+  const strToHash = (s: string) => {
+    let hash = 0;
+    for (let i = 0; i < s.length; i++) hash = (hash << 5) - hash + s.charCodeAt(i);
+    return Math.abs(hash);
+  };
+
+  const imgIndex = (strToHash(record.id + record.plate) % 6) + 1;
+  const imgCat = record.camera.includes('001') || record.camera.includes('004') ? 'junction' :
+                 record.camera.includes('003') || record.camera.includes('006') ? 'highway' : 'lane';
+  const vehicleImgSrc = `/vehicles/${imgCat}_${imgIndex}.jpg`;
 
   return (
     <>
@@ -67,11 +48,27 @@ function ANPRModal({ record, onClose }: ModalProps) {
           </div>
 
           <div className="p-5 space-y-4">
-            {/* Vehicle image area */}
-            <div className="h-36 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#0a0e1a', border: '1px solid #1e2d4a' }}>
-              <div className="text-center">
-                <div className="text-xs" style={{ color: '#2d3f5a' }}>VEHICLE IMAGE · {record.camera}</div>
-                <div className="text-xs mt-1" style={{ color: '#1e2d4a' }}>{record.timestamp}</div>
+            {/* Vehicle image area with real capture */}
+            <div className="relative h-44 rounded-lg overflow-hidden border" style={{ backgroundColor: '#0a0e1a', borderColor: '#1e2d4a' }}>
+              <img
+                src={vehicleImgSrc}
+                alt={`Captured vehicle ${record.plate}`}
+                className="w-full h-full object-cover"
+              />
+              {/* Target reticle / bounding box overlay */}
+              <div
+                className="absolute border-2 border-[#22c55e] rounded-sm pointer-events-none"
+                style={{
+                  left: '25%', top: '20%', width: '50%', height: '60%',
+                  boxShadow: '0 0 12px rgba(34, 197, 94, 0.4)',
+                }}
+              >
+                <div className="absolute -top-5 left-0 px-1.5 py-0.5 rounded bg-[#22c55e] text-black text-[9px] font-bold font-mono">
+                  {record.vehicle_type || 'Vehicle'} · {record.confidence}%
+                </div>
+              </div>
+              <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 text-[9px] font-mono text-[#8899bb]">
+                CAM: {record.camera} · {record.timestamp}
               </div>
             </div>
 
@@ -82,7 +79,7 @@ function ANPRModal({ record, onClose }: ModalProps) {
             >
               <span
                 className="text-2xl font-bold tracking-widest"
-                style={{ color: record.ocrConfidence > 60 ? '#f0f4ff' : '#ef4444', fontFamily: "'JetBrains Mono', monospace" }}
+                style={{ color: record.confidence > 60 ? '#f0f4ff' : '#ef4444', fontFamily: "'JetBrains Mono', monospace" }}
               >
                 {record.plate}
               </span>
@@ -107,12 +104,12 @@ function ANPRModal({ record, onClose }: ModalProps) {
             {/* Meta */}
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: 'OCR Confidence', node: <ConfidenceBadge value={record.ocrConfidence} /> },
-                { label: 'Status', node: <StatusBadge status={record.status} /> },
+                { label: 'OCR Confidence', node: <ConfidenceBadge value={record.confidence} /> },
+                { label: 'Status', node: <StatusBadge status={status as any} /> },
                 { label: 'Camera', value: record.camera, mono: true, accent: '#06b6d4' },
-                { label: 'Location', value: record.location },
                 { label: 'Timestamp', value: record.timestamp, mono: true },
-                { label: 'Vehicle ID', value: record.vehicleId, mono: true, accent: '#3b82f6' },
+                { label: 'Vehicle ID', value: record.vehicle_id || 'ΓÇö', mono: true, accent: '#3b82f6' },
+                { label: 'Flagged', value: record.flagged ? 'Yes' : 'No', accent: record.flagged ? '#ef4444' : '#8899bb' },
               ].map((item) => (
                 <div key={item.label} className="p-3 rounded-lg border" style={{ backgroundColor: '#141c30', borderColor: '#1e2d4a' }}>
                   <div className="text-xs mb-1" style={{ color: '#4a6080' }}>{item.label}</div>
@@ -136,39 +133,45 @@ function ANPRModal({ record, onClose }: ModalProps) {
 }
 
 export default function ANPRPage() {
+  const { cameras } = useApp()
   const [page, setPage] = useState(1)
-  const [modalRecord, setModalRecord] = useState<ANPRRecord | null>(null)
-  const [anprData, setAnprData] = useState<ANPRRecord[]>(ANPR_DATA)
+  const [modalRecord, setModalRecord] = useState<AnprRead | null>(null)
+  
+  const [reads, setReads] = useState<AnprRead[]>([])
+  const [loading, setLoading] = useState(true)
+  const [cameraFilter, setCameraFilter] = useState<string>('All')
+
+  const fetchReads = async () => {
+    try {
+      const res = await getAnprReads({ limit: 100 })
+      setReads(res.reads)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const data = await api.getANPR();
-        if (data.anpr && data.anpr.length > 0) {
-          const formatted = data.anpr.map((r: any) => ({
-            id: `ANPR-${r.id}`,
-            timestamp: typeof r.timestamp === 'number' ? new Date(r.timestamp * 1000).toLocaleTimeString() : r.timestamp,
-            plate: r.plate_text,
-            camera: r.camera_id,
-            location: 'Unknown',
-            vehicleType: 'Unknown',
-            ocrConfidence: r.confidence,
-            vehicleId: '—',
-            status: r.confidence > 80 ? 'Verified' : 'Low Confidence'
-          }));
-          setAnprData(formatted);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchData();
-    const interval = setInterval(fetchData, 3000);
-    return () => clearInterval(interval);
-  }, []);
+    fetchReads()
+    const int = setInterval(fetchReads, 5000)
+    return () => clearInterval(int)
+  }, [])
 
-  const totalPages = Math.max(1, Math.ceil(anprData.length / PAGE_SIZE))
-  const paged = anprData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const filteredReads = reads.filter(r => cameraFilter === 'All' || r.camera === cameraFilter)
+  const totalPages = Math.max(1, Math.ceil(filteredReads.length / PAGE_SIZE))
+  const paged = filteredReads.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const successfulCount = reads.filter(r => r.confidence > 60).length
+  const failureCount = reads.length - successfulCount
+  const accRate = reads.length ? ((successfulCount / reads.length) * 100).toFixed(1) : '0.0'
+
+  const KPI = [
+    { label: 'Plates Detected', value: reads.length.toString(), icon: <ScanLine size={18} />, color: '#3b82f6', sub: 'Total in cache' },
+    { label: 'Successful OCR', value: successfulCount.toString(), icon: <CheckCircle size={18} />, color: '#22c55e', sub: `${accRate}% of detections` },
+    { label: 'OCR Accuracy', value: `${accRate}%`, icon: <CheckCircle size={18} />, color: '#06b6d4', sub: 'Current window' },
+    { label: 'Unknown / Unreadable', value: failureCount.toString(), icon: <XCircle size={18} />, color: '#ef4444', sub: 'Below threshold' },
+  ]
 
   return (
     <div className="space-y-4">
@@ -188,62 +191,87 @@ export default function ANPRPage() {
         ))}
       </div>
 
-      {/* ANPR Table */}
+      {/* Camera Filter & ANPR Table */}
       <div className="rounded-lg border overflow-hidden" style={{ backgroundColor: '#0f1629', borderColor: '#1e2d4a' }}>
-        <div className="px-4 py-3 border-b flex items-center gap-2" style={{ borderColor: '#1e2d4a' }}>
-          <ScanLine size={14} color="#3b82f6" />
-          <span className="text-xs font-semibold" style={{ color: '#f0f4ff' }}>Live ANPR Feed</span>
-          <div className="w-1.5 h-1.5 rounded-full animate-pulse ml-1" style={{ backgroundColor: '#22c55e' }} />
-          <span className="text-xs" style={{ color: '#22c55e' }}>LIVE</span>
-        </div>
-        <table className="w-full text-xs">
-          <thead>
-            <tr style={{ backgroundColor: '#141c30', borderBottom: '1px solid #1e2d4a' }}>
-              {['Timestamp', 'Plate', 'Camera', 'Location', 'Type', 'OCR Confidence', 'Vehicle ID', 'Status', 'Evidence'].map((h) => (
-                <th key={h} className="px-3 py-3 text-left font-medium uppercase" style={{ color: '#4a6080', fontSize: '10px', letterSpacing: '0.08em' }}>{h}</th>
+        <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: '#1e2d4a' }}>
+          <div className="flex items-center gap-2">
+            <ScanLine size={14} color="#3b82f6" />
+            <span className="text-xs font-semibold" style={{ color: '#f0f4ff' }}>Live ANPR Feed</span>
+            <div className="w-1.5 h-1.5 rounded-full animate-pulse ml-1" style={{ backgroundColor: '#22c55e' }} />
+            <span className="text-xs" style={{ color: '#22c55e' }}>LIVE</span>
+          </div>
+          <div>
+            <select
+              value={cameraFilter}
+              onChange={(e) => { setCameraFilter(e.target.value); setPage(1) }}
+              className="bg-transparent border text-xs rounded px-2 py-1 outline-none"
+              style={{ borderColor: '#1e2d4a', color: '#f0f4ff', backgroundColor: '#141c30' }}
+            >
+              <option value="All">All Cameras</option>
+              {cameras.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {paged.map((r, i) => (
-              <tr
-                key={r.id}
-                className="cursor-pointer transition-colors"
-                style={{ borderBottom: i < paged.length - 1 ? '1px solid #1e2d4a' : 'none' }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#141c30')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                onClick={() => setModalRecord(r)}
-              >
-                <td className="px-3 py-2.5 font-mono" style={{ color: '#8899bb', fontFamily: "'JetBrains Mono', monospace" }}>{r.timestamp}</td>
-                <td className="px-3 py-2.5 font-mono font-semibold" style={{ color: '#f0f4ff', fontFamily: "'JetBrains Mono', monospace" }}>{r.plate}</td>
-                <td className="px-3 py-2.5">
-                  <span className="px-1.5 py-0.5 rounded text-xs font-mono" style={{ backgroundColor: '#06b6d415', color: '#06b6d4', fontFamily: "'JetBrains Mono', monospace" }}>{r.camera}</span>
-                </td>
-                <td className="px-3 py-2.5" style={{ color: '#8899bb' }}>{r.location}</td>
-                <td className="px-3 py-2.5" style={{ color: '#8899bb' }}>{r.vehicleType}</td>
-                <td className="px-3 py-2.5"><ConfidenceBadge value={r.ocrConfidence} label={false} /></td>
-                <td className="px-3 py-2.5 font-mono text-xs" style={{ color: r.vehicleId === '—' ? '#2d3f5a' : '#3b82f6', fontFamily: "'JetBrains Mono', monospace" }}>{r.vehicleId}</td>
-                <td className="px-3 py-2.5"><StatusBadge status={r.status} /></td>
-                <td className="px-3 py-2.5">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setModalRecord(r) }}
-                    className="flex items-center gap-1 px-2 py-1 rounded border text-xs"
-                    style={{ backgroundColor: '#141c30', borderColor: '#253656', color: '#8899bb' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = '#3b82f6'; e.currentTarget.style.borderColor = '#2563eb50' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = '#8899bb'; e.currentTarget.style.borderColor = '#253656' }}
-                  >
-                    <Eye size={11} />
-                    View
-                  </button>
-                </td>
+            </select>
+          </div>
+        </div>
+        
+        {loading && !reads.length ? (
+          <div className="p-8 text-center text-sm" style={{ color: '#4a6080' }}>Loading ANPR data...</div>
+        ) : (
+          <table className="w-full text-xs">
+            <thead>
+              <tr style={{ backgroundColor: '#141c30', borderBottom: '1px solid #1e2d4a' }}>
+                {['Timestamp', 'Plate', 'Camera', 'Type', 'OCR Confidence', 'Vehicle ID', 'Status', 'Evidence'].map((h) => (
+                  <th key={h} className="px-3 py-3 text-left font-medium uppercase" style={{ color: '#4a6080', fontSize: '10px', letterSpacing: '0.08em' }}>{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paged.map((r, i) => {
+                const status = r.confidence > 85 ? 'Verified' : r.confidence > 60 ? 'Low Confidence' : 'Unreadable'
+                return (
+                  <tr
+                    key={r.id}
+                    className="cursor-pointer transition-colors"
+                    style={{ 
+                      borderBottom: i < paged.length - 1 ? '1px solid #1e2d4a' : 'none',
+                      backgroundColor: r.flagged ? '#ef444420' : 'transparent'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = r.flagged ? '#ef444430' : '#141c30')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = r.flagged ? '#ef444420' : 'transparent')}
+                    onClick={() => setModalRecord(r)}
+                  >
+                    <td className="px-3 py-2.5 font-mono" style={{ color: '#8899bb', fontFamily: "'JetBrains Mono', monospace" }}>{r.timestamp}</td>
+                    <td className="px-3 py-2.5 font-mono font-semibold" style={{ color: r.flagged ? '#ef4444' : '#f0f4ff', fontFamily: "'JetBrains Mono', monospace" }}>{r.plate}</td>
+                    <td className="px-3 py-2.5">
+                      <span className="px-1.5 py-0.5 rounded text-xs font-mono" style={{ backgroundColor: '#06b6d415', color: '#06b6d4', fontFamily: "'JetBrains Mono', monospace" }}>{r.camera}</span>
+                    </td>
+                    <td className="px-3 py-2.5" style={{ color: '#8899bb' }}>{r.vehicle_type || 'Unknown'}</td>
+                    <td className="px-3 py-2.5"><ConfidenceBadge value={r.confidence} label={false} /></td>
+                    <td className="px-3 py-2.5 font-mono text-xs" style={{ color: !r.vehicle_id ? '#2d3f5a' : '#3b82f6', fontFamily: "'JetBrains Mono', monospace" }}>{r.vehicle_id || 'ΓÇö'}</td>
+                    <td className="px-3 py-2.5"><StatusBadge status={status as any} /></td>
+                    <td className="px-3 py-2.5">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setModalRecord(r) }}
+                        className="flex items-center gap-1 px-2 py-1 rounded border text-xs"
+                        style={{ backgroundColor: '#141c30', borderColor: '#253656', color: '#8899bb' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = '#3b82f6'; e.currentTarget.style.borderColor = '#2563eb50' }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = '#8899bb'; e.currentTarget.style.borderColor = '#253656' }}
+                      >
+                        <Eye size={11} />
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
 
         {/* Pagination */}
         <div className="flex items-center justify-between px-4 py-3 border-t" style={{ borderColor: '#1e2d4a' }}>
-          <span className="text-xs" style={{ color: '#4a6080' }}>{anprData.length} records · Page {page} of {totalPages}</span>
+          <span className="text-xs" style={{ color: '#4a6080' }}>{filteredReads.length} records ┬╖ Page {page} of {totalPages}</span>
           <div className="flex items-center gap-1">
             <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded border" style={{ backgroundColor: '#141c30', borderColor: '#1e2d4a', color: page === 1 ? '#2d3f5a' : '#8899bb' }}>
               <ChevronLeft size={14} />

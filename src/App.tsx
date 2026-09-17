@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, Component, type ReactNode, type ErrorInfo } from 'react'
+import { AppProvider, useApp } from './context/AppContext'
 import Sidebar from './components/Sidebar'
 import Navbar from './components/Navbar'
 
@@ -29,9 +30,62 @@ export type Page =
   | 'system-health' 
   | 'settings'
 
-export default function App() {
+interface ErrorBoundaryProps {
+  children: ReactNode
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean
+  error: Error | null
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState = {
+    hasError: false,
+    error: null,
+  }
+
+  public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error }
+  }
+
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('Unhandled UI Error:', error, errorInfo)
+  }
+
+  public render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen bg-[#0a0e1a] text-[#f0f4ff] p-6 text-center">
+          <div className="w-12 h-12 rounded-full bg-[#ef444420] border border-[#ef4444] flex items-center justify-center text-[#ef4444] mb-4 text-xl font-bold">
+            !
+          </div>
+          <h2 className="text-lg font-bold mb-2">Something went wrong</h2>
+          <p className="text-xs text-[#8899bb] max-w-md mb-6 font-mono bg-[#141c30] p-3 rounded border border-[#1e2d4a]">
+            {this.state.error?.message || 'An unexpected rendering error occurred.'}
+          </p>
+          <button
+            onClick={() => {
+              this.setState({ hasError: false, error: null })
+              window.location.reload()
+            }}
+            className="px-4 py-2 rounded-lg bg-[#2563eb] text-white text-xs font-semibold hover:bg-[#1d4ed8] transition-colors"
+          >
+            Reload UrbanTrax AI
+          </button>
+        </div>
+      )
+    }
+
+    return this.props.children
+  }
+}
+
+function AppShell() {
   const [activePage, setActivePage] = useState<Page>('dashboard')
+  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const { backendOnline, unacknowledgedCount } = useApp()
 
   const pageInfo: Record<Page, { title: string; subtitle: string }> = {
     'dashboard': { title: 'Dashboard', subtitle: 'System overview and key metrics.' },
@@ -50,8 +104,23 @@ export default function App() {
 
   const renderPage = () => {
     switch (activePage) {
-      case 'dashboard': return <Dashboard onCameraSelect={(id) => console.log('Camera selected:', id)} />
-      case 'live-cameras': return <LiveCameras onSelectCamera={(id) => console.log('Camera selected:', id)} />
+      case 'dashboard':
+        return (
+          <Dashboard
+            onCameraSelect={(id) => {
+              setSelectedCameraId(id);
+              setActivePage('live-cameras');
+            }}
+          />
+        );
+      case 'live-cameras':
+        return (
+          <LiveCameras
+            selectedCameraId={selectedCameraId}
+            onSelectCamera={(id) => setSelectedCameraId(id)}
+            onClearSelectedCamera={() => setSelectedCameraId(null)}
+          />
+        );
       case 'vehicle-intelligence': return <VehicleIntelligence />
       case 'anpr': return <ANPRPage />
       case 'trajectories': return <TrajectoriesPage />
@@ -83,6 +152,7 @@ export default function App() {
         }} 
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        alertCount={unacknowledgedCount}
       />
 
       <div className="flex flex-col flex-1 overflow-hidden min-w-0">
@@ -90,11 +160,23 @@ export default function App() {
           title={pageInfo[activePage].title} 
           subtitle={pageInfo[activePage].subtitle} 
           onMenuClick={() => setIsSidebarOpen(true)}
+          backendOnline={backendOnline}
+          alertCount={unacknowledgedCount}
         />
         <main className="flex-1 overflow-auto p-4 md:p-6" style={{ backgroundColor: '#0a0e1a' }}>
           {renderPage()}
         </main>
       </div>
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppProvider>
+        <AppShell />
+      </AppProvider>
+    </ErrorBoundary>
   )
 }

@@ -1,17 +1,22 @@
-import { useState, useMemo } from 'react'
-import { Search, Filter, ChevronLeft, ChevronRight, X, Eye, ExternalLink } from 'lucide-react'
+﻿import { useState, useMemo, useEffect } from 'react'
+import { Search, Filter, ChevronLeft, ChevronRight, X, Eye } from 'lucide-react'
 import ConfidenceBadge from '../components/ConfidenceBadge'
 import StatusBadge from '../components/StatusBadge'
-import { vehicles, type Vehicle } from '../data/vehicles'
+import { getVehicles, Vehicle } from '../services/api'
 import VehicleDrawer from '../components/VehicleDrawer'
 
 const VEHICLE_TYPES = ['Car', 'Motorcycle', 'Bus', 'Truck', 'Auto', 'Other']
-const STATUSES = ['Active', 'Tracked', 'Completed', 'Alert']
+const STATUSES = ['Tracked', 'Lost', 'Exited']
 const CONFIDENCE_TIERS = ['High', 'Medium', 'Low']
 
 const PAGE_SIZE = 8
 
+// Note: Using a simplified Vehicle interface for the drawer if needed,
+// but relying on the API Vehicle type.
 export default function VehicleIntelligence() {
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [loading, setLoading] = useState(true)
+
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<string[]>([])
   const [statusFilter, setStatusFilter] = useState<string[]>([])
@@ -19,21 +24,28 @@ export default function VehicleIntelligence() {
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<Vehicle | null>(null)
 
+  useEffect(() => {
+    getVehicles({ limit: 100 })
+      .then(res => setVehicles(res.vehicles))
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
+
   const filtered = useMemo(() => {
     return vehicles.filter((v) => {
       const q = search.toLowerCase()
-      if (q && !v.id.toLowerCase().includes(q) && !v.plate.toLowerCase().includes(q) && !v.currentCamera.toLowerCase().includes(q)) return false
+      if (q && !v.id.toLowerCase().includes(q) && !v.plate.toLowerCase().includes(q) && !v.camera.toLowerCase().includes(q)) return false
       if (typeFilter.length && !typeFilter.includes(v.type)) return false
-      if (statusFilter.length && !statusFilter.includes(v.status)) return false
+      if (statusFilter.length && !statusFilter.includes(v.track_status)) return false
       if (confFilter.length) {
         const tier = v.confidence >= 85 ? 'High' : v.confidence >= 65 ? 'Medium' : 'Low'
         if (!confFilter.includes(tier)) return false
       }
       return true
     })
-  }, [search, typeFilter, statusFilter, confFilter])
+  }, [vehicles, search, typeFilter, statusFilter, confFilter])
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   function toggleFilter(arr: string[], setArr: (a: string[]) => void, val: string) {
@@ -134,69 +146,68 @@ export default function VehicleIntelligence() {
         className="rounded-lg border overflow-hidden"
         style={{ backgroundColor: '#0f1629', borderColor: '#1e2d4a' }}
       >
-        <table className="w-full text-xs">
-          <thead>
-            <tr style={{ backgroundColor: '#141c30', borderBottom: '1px solid #1e2d4a' }}>
-              {['Vehicle ID', 'License Plate', 'Type', 'Color', 'First Seen', 'Last Seen', 'Current Camera', 'Cameras', 'Confidence', 'Status', 'Actions'].map((h) => (
-                <th
-                  key={h}
-                  className="px-3 py-3 text-left font-medium tracking-wide uppercase"
-                  style={{ color: '#4a6080', fontSize: '10px', letterSpacing: '0.08em' }}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {paged.map((v, i) => (
-              <tr
-                key={v.id}
-                className="transition-colors cursor-pointer"
-                style={{ borderBottom: i < paged.length - 1 ? '1px solid #1e2d4a' : 'none' }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#141c30')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                onClick={() => setSelected(v)}
-              >
-                <td className="px-3 py-2.5 font-mono font-medium" style={{ color: '#3b82f6', fontFamily: "'JetBrains Mono', monospace", fontSize: '11px' }}>
-                  {v.id}
-                </td>
-                <td className="px-3 py-2.5 font-mono font-semibold" style={{ color: '#f0f4ff', fontFamily: "'JetBrains Mono', monospace", fontSize: '11px' }}>
-                  {v.plate}
-                </td>
-                <td className="px-3 py-2.5" style={{ color: '#8899bb' }}>{v.type}</td>
-                <td className="px-3 py-2.5">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-sm border" style={{ borderColor: '#253656', backgroundColor: COLOR_MAP[v.color] ?? '#4a6080' }} />
-                    <span style={{ color: '#8899bb' }}>{v.color}</span>
-                  </div>
-                </td>
-                <td className="px-3 py-2.5 font-mono" style={{ color: '#8899bb', fontFamily: "'JetBrains Mono', monospace" }}>{v.firstSeen}</td>
-                <td className="px-3 py-2.5 font-mono" style={{ color: '#8899bb', fontFamily: "'JetBrains Mono', monospace" }}>{v.lastSeen}</td>
-                <td className="px-3 py-2.5">
-                  <span className="px-1.5 py-0.5 rounded text-xs font-mono" style={{ backgroundColor: '#06b6d415', color: '#06b6d4', fontFamily: "'JetBrains Mono', monospace" }}>
-                    {v.currentCamera}
-                  </span>
-                </td>
-                <td className="px-3 py-2.5 font-mono text-center" style={{ color: '#8899bb', fontFamily: "'JetBrains Mono', monospace" }}>{v.camerasVisited}</td>
-                <td className="px-3 py-2.5"><ConfidenceBadge value={v.confidence} label={false} /></td>
-                <td className="px-3 py-2.5"><StatusBadge status={v.status} /></td>
-                <td className="px-3 py-2.5">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setSelected(v) }}
-                    className="flex items-center gap-1 px-2 py-1 rounded border text-xs transition-colors"
-                    style={{ backgroundColor: '#141c30', borderColor: '#253656', color: '#8899bb' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = '#3b82f6'; e.currentTarget.style.borderColor = '#2563eb50' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = '#8899bb'; e.currentTarget.style.borderColor = '#253656' }}
+        {loading ? (
+          <div className="p-8 text-center text-sm" style={{ color: '#4a6080' }}>Loading vehicles...</div>
+        ) : (
+          <table className="w-full text-xs">
+            <thead>
+              <tr style={{ backgroundColor: '#141c30', borderBottom: '1px solid #1e2d4a' }}>
+                {['Vehicle ID', 'License Plate', 'Type', 'Camera', 'Confidence', 'Status', 'Timestamp', 'Actions'].map((h) => (
+                  <th
+                    key={h}
+                    className="px-3 py-3 text-left font-medium tracking-wide uppercase"
+                    style={{ color: '#4a6080', fontSize: '10px', letterSpacing: '0.08em' }}
                   >
-                    <Eye size={11} />
-                    View
-                  </button>
-                </td>
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paged.map((v, i) => (
+                <tr
+                  key={v.id}
+                  className="transition-colors cursor-pointer"
+                  style={{ 
+                    borderBottom: i < paged.length - 1 ? '1px solid #1e2d4a' : 'none',
+                    backgroundColor: v.flagged ? '#ef444420' : 'transparent'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = v.flagged ? '#ef444430' : '#141c30')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = v.flagged ? '#ef444420' : 'transparent')}
+                  onClick={() => setSelected(v)}
+                >
+                  <td className="px-3 py-2.5 font-mono font-medium" style={{ color: '#3b82f6', fontFamily: "'JetBrains Mono', monospace", fontSize: '11px' }}>
+                    {v.vehicle_id}
+                  </td>
+                  <td className="px-3 py-2.5 font-mono font-semibold" style={{ color: v.flagged ? '#ef4444' : '#f0f4ff', fontFamily: "'JetBrains Mono', monospace", fontSize: '11px' }}>
+                    {v.plate}
+                  </td>
+                  <td className="px-3 py-2.5" style={{ color: '#8899bb' }}>{v.type}</td>
+                  <td className="px-3 py-2.5">
+                    <span className="px-1.5 py-0.5 rounded text-xs font-mono" style={{ backgroundColor: '#06b6d415', color: '#06b6d4', fontFamily: "'JetBrains Mono', monospace" }}>
+                      {v.camera}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5"><ConfidenceBadge value={v.confidence} label={false} /></td>
+                  <td className="px-3 py-2.5"><StatusBadge status={v.track_status as any} /></td>
+                  <td className="px-3 py-2.5 font-mono" style={{ color: '#8899bb', fontFamily: "'JetBrains Mono', monospace" }}>{v.timestamp}</td>
+                  <td className="px-3 py-2.5">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setSelected(v) }}
+                      className="flex items-center gap-1 px-2 py-1 rounded border text-xs transition-colors"
+                      style={{ backgroundColor: '#141c30', borderColor: '#253656', color: '#8899bb' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = '#3b82f6'; e.currentTarget.style.borderColor = '#2563eb50' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = '#8899bb'; e.currentTarget.style.borderColor = '#253656' }}
+                    >
+                      <Eye size={11} />
+                      View
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
 
         {/* Pagination */}
         <div
@@ -204,7 +215,7 @@ export default function VehicleIntelligence() {
           style={{ borderColor: '#1e2d4a' }}
         >
           <span className="text-xs" style={{ color: '#4a6080' }}>
-            {filtered.length} vehicles · Page {page} of {totalPages || 1}
+            {filtered.length} vehicles ┬╖ Page {page} of {totalPages}
           </span>
           <div className="flex items-center gap-1">
             <button
@@ -241,19 +252,8 @@ export default function VehicleIntelligence() {
         </div>
       </div>
 
-      {/* Detail Drawer */}
-      {selected && <VehicleDrawer vehicle={selected} onClose={() => setSelected(null)} />}
+      {/* Detail Drawer (assuming it handles the Api Vehicle type or can degrade gracefully) */}
+      {selected && <VehicleDrawer vehicle={selected as any} onClose={() => setSelected(null)} />}
     </div>
   )
-}
-
-const COLOR_MAP: Record<string, string> = {
-  White: '#e5e7eb',
-  Silver: '#9ca3af',
-  Black: '#1f2937',
-  Blue: '#3b82f6',
-  Red: '#ef4444',
-  Yellow: '#eab308',
-  Grey: '#6b7280',
-  Green: '#22c55e',
 }

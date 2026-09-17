@@ -57,9 +57,10 @@ interface Props {
   onNavigate: (page: Page) => void
   isOpen?: boolean
   onClose?: () => void
+  alertCount?: number
 }
 
-export default function Sidebar({ activePage, onNavigate, isOpen, onClose }: Props) {
+export default function Sidebar({ activePage, onNavigate, isOpen, onClose, alertCount = 0 }: Props) {
   return (
     <aside
       className={`flex flex-col w-64 md:w-56 shrink-0 border-r fixed md:relative inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out ${
@@ -123,7 +124,15 @@ export default function Sidebar({ activePage, onNavigate, isOpen, onClose }: Pro
               <span style={{ color: isActive ? '#3b82f6' : isDisabled ? '#1e2d4a' : '#4a6080' }}>
                 {item.icon}
               </span>
-              <span className="text-xs font-medium">{item.label}</span>
+              <span className="text-xs font-medium flex-1">{item.label}</span>
+              {item.id === 'alerts' && alertCount > 0 && (
+                <span
+                  className="text-white rounded-full px-1.5 py-0.5"
+                  style={{ backgroundColor: '#ef4444', fontSize: '9px', fontWeight: 700, minWidth: 16, textAlign: 'center' }}
+                >
+                  {alertCount > 9 ? '9+' : alertCount}
+                </span>
+              )}
             </button>
           )
         })}
