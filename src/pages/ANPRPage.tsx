@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ScanLine, CheckCircle, AlertTriangle, XCircle, Eye, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import ConfidenceBadge from '../components/ConfidenceBadge'
 import StatusBadge from '../components/StatusBadge'
+import { api } from '../services/api'
 
 interface ANPRRecord {
   id: string
@@ -137,9 +138,37 @@ function ANPRModal({ record, onClose }: ModalProps) {
 export default function ANPRPage() {
   const [page, setPage] = useState(1)
   const [modalRecord, setModalRecord] = useState<ANPRRecord | null>(null)
+  const [anprData, setAnprData] = useState<ANPRRecord[]>(ANPR_DATA)
 
-  const totalPages = Math.ceil(ANPR_DATA.length / PAGE_SIZE)
-  const paged = ANPR_DATA.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await api.getANPR();
+        if (data.anpr && data.anpr.length > 0) {
+          const formatted = data.anpr.map((r: any) => ({
+            id: `ANPR-${r.id}`,
+            timestamp: typeof r.timestamp === 'number' ? new Date(r.timestamp * 1000).toLocaleTimeString() : r.timestamp,
+            plate: r.plate_text,
+            camera: r.camera_id,
+            location: 'Unknown',
+            vehicleType: 'Unknown',
+            ocrConfidence: r.confidence,
+            vehicleId: '—',
+            status: r.confidence > 80 ? 'Verified' : 'Low Confidence'
+          }));
+          setAnprData(formatted);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchData();
+    const interval = setInterval(fetchData, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const totalPages = Math.max(1, Math.ceil(anprData.length / PAGE_SIZE))
+  const paged = anprData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   return (
     <div className="space-y-4">
@@ -214,7 +243,7 @@ export default function ANPRPage() {
 
         {/* Pagination */}
         <div className="flex items-center justify-between px-4 py-3 border-t" style={{ borderColor: '#1e2d4a' }}>
-          <span className="text-xs" style={{ color: '#4a6080' }}>{ANPR_DATA.length} records · Page {page} of {totalPages}</span>
+          <span className="text-xs" style={{ color: '#4a6080' }}>{anprData.length} records · Page {page} of {totalPages}</span>
           <div className="flex items-center gap-1">
             <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded border" style={{ backgroundColor: '#141c30', borderColor: '#1e2d4a', color: page === 1 ? '#2d3f5a' : '#8899bb' }}>
               <ChevronLeft size={14} />

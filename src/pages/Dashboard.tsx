@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import {
-  kpiData, alerts, trafficVolumeData, vehicleDistribution,
+  kpiData as initialKpiData, alerts as initialAlerts, trafficVolumeData, vehicleDistribution,
   cameraTrafficData, cameras, systemStatus
 } from '../data/mockData';
+import { api } from '../services/api';
 
 type ChartFilter = '15m' | '1h' | 'today' | 'custom';
 
@@ -66,14 +70,63 @@ function accentRgb(name: string) {
   return map[name] || '59,130,246';
 }
 
-// ── City Map ──────────────────────────────────────────────────────────────
+// ── Create camera marker icons ──────────────────────────────────────────
+function createCameraIcon(status: string, isSelected: boolean) {
+  const color = isSelected ? '#3b82f6' :
+    status === 'online' ? '#22c55e' :
+    status === 'warning' ? '#f59e0b' : '#ef4444';
+  const size = isSelected ? 28 : 20;
+  const pulseRing = isSelected
+    ? `<circle cx="14" cy="14" r="13" fill="none" stroke="${color}" stroke-width="1" opacity="0.4"><animate attributeName="r" from="10" to="16" dur="1.5s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.6" to="0" dur="1.5s" repeatCount="indefinite"/></circle>`
+    : '';
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 28 28">
+    ${pulseRing}
+    <circle cx="14" cy="14" r="8" fill="${color}" fill-opacity="0.2" stroke="${color}" stroke-width="1.5"/>
+    <circle cx="14" cy="14" r="4" fill="${color}"/>
+    <path d="M10 12.5l-3-1.5v6l3-1.5M10 12v4a1 1 0 001 1h4a1 1 0 001-1v-4a1 1 0 00-1-1h-4a1 1 0 00-1 1z" fill="none" stroke="white" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+  </svg>`;
+
+  return L.divIcon({
+    html: svg,
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2],
+  });
+}
+
+// ── Map fly-to helper ───────────────────────────────────────────────────
+function FlyToCamera({ cam }: { cam: typeof cameras[number] | undefined }) {
+  const map = useMap();
+  const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    if (!cam) return;
+    // Skip flying on first render — map is already centered
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    try {
+      map.flyTo([cam.lat, cam.lng], 14, { duration: 0.8 });
+    } catch {
+      // Map not ready yet, silently ignore
+    }
+  }, [cam, map]);
+  return null;
+}
+
+// ── City Map (Leaflet) ──────────────────────────────────────────────────
 function CityMap({ onSelectCamera, selectedCam }: { onSelectCamera: (id: string) => void; selectedCam: string | null }) {
+  const selectedCamera = cameras.find(c => c.id === selectedCam);
+
   return (
-    <div className="bg-[#0c1220] border border-[#1a2a40] rounded-lg flex flex-col overflow-hidden">
+    <div className="bg-[#0c1220] border border-[#1a2a40] rounded-lg flex flex-col overflow-hidden" style={{ height: 440 }}>
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#1a2a40]">
         <div>
-          <div className="text-sm font-semibold text-[#e2eaf3]" style={{ fontFamily: 'Outfit, sans-serif' }}>City Traffic Overview</div>
-          <div className="text-[10px] text-[#4d607a] mt-0.5">Demo city — sample camera placements</div>
+          <div className="text-sm font-semibold text-[#e2eaf3]" style={{ fontFamily: 'Outfit, sans-serif' }}>Bangalore Traffic Network</div>
+          <div className="text-[10px] text-[#4d607a] mt-0.5">Live camera placements at traffic signals</div>
         </div>
         <div className="flex items-center gap-3 text-[10px] text-[#4d607a]">
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#22c55e]" />Online</span>
@@ -82,74 +135,71 @@ function CityMap({ onSelectCamera, selectedCam }: { onSelectCamera: (id: string)
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#3b82f6]" />Selected</span>
         </div>
       </div>
-      <div className="relative flex-1 overflow-hidden" style={{ minHeight: 280 }}>
-        {/* SVG city grid */}
-        <svg viewBox="0 0 100 80" className="w-full h-full" style={{ background: '#070c17' }}>
-          {/* Grid roads */}
-          {[15, 30, 45, 60, 75].map(y => (
-            <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#0f1a2e" strokeWidth="2" />
-          ))}
-          {[15, 30, 45, 60, 75, 90].map(x => (
-            <line key={x} x1={x} y1="0" x2={x} y2="80" stroke="#0f1a2e" strokeWidth="2" />
-          ))}
-          {/* Major roads */}
-          <line x1="0" y1="40" x2="100" y2="40" stroke="#1a2a40" strokeWidth="3" />
-          <line x1="50" y1="0" x2="50" y2="80" stroke="#1a2a40" strokeWidth="3" />
-          <line x1="0" y1="25" x2="100" y2="55" stroke="#131d2e" strokeWidth="2.5" />
-          <line x1="0" y1="55" x2="100" y2="25" stroke="#131d2e" strokeWidth="2" />
-          {/* Highway */}
-          <path d="M0,20 Q25,22 50,25 Q75,28 100,22" stroke="#1e3050" strokeWidth="4" fill="none" />
-          {/* City label */}
-          <text x="3" y="7" fill="#1a2a40" fontSize="3" fontFamily="JetBrains Mono" fontWeight="bold">DEMO CITY — SAMPLE DATA</text>
-
-          {/* Traffic flow lines */}
-          {cameras.filter(c => c.status === 'online').map(cam => {
-            const x1 = cam.mapX + (Math.random() > 0.5 ? 8 : -8);
-            const y1 = cam.mapY + (Math.random() > 0.5 ? 4 : -4);
-            return (
-              <line key={`flow-${cam.id}`}
-                x1={cam.mapX} y1={cam.mapY}
-                x2={x1} y2={y1}
-                stroke={cam.traffic === 'high' ? '#ef4444' : cam.traffic === 'moderate' ? '#f59e0b' : '#22c55e'}
-                strokeWidth="0.5" opacity="0.3"
-                strokeDasharray="1,1"
-              />
-            );
-          })}
-
-          {/* Camera markers */}
+      <div className="relative flex-1" style={{ height: '100%' }}>
+        <MapContainer
+          center={[12.9716, 77.5946]}
+          zoom={12}
+          scrollWheelZoom={true}
+          zoomControl={false}
+          attributionControl={false}
+          style={{ height: '100%', width: '100%', background: '#070c17' }}
+        >
+          <TileLayer
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          />
+          <FlyToCamera cam={selectedCamera} />
           {cameras.map(cam => (
-            <g key={cam.id} style={{ cursor: 'pointer' }} onClick={() => onSelectCamera(cam.id)}>
-              <circle
-                cx={cam.mapX} cy={cam.mapY} r={selectedCam === cam.id ? 4 : 2.5}
-                fill={selectedCam === cam.id ? '#3b82f6' :
-                  cam.status === 'online' ? '#22c55e' :
-                  cam.status === 'warning' ? '#f59e0b' : '#ef4444'}
-                stroke={selectedCam === cam.id ? '#93c5fd' :
-                  cam.status === 'online' ? '#4ade80' :
-                  cam.status === 'warning' ? '#fbbf24' : '#f87171'}
-                strokeWidth="0.8"
-                opacity={selectedCam === cam.id ? 1 : 0.9}
-              />
-              {selectedCam === cam.id && (
-                <circle cx={cam.mapX} cy={cam.mapY} r="7" fill="none" stroke="#3b82f6" strokeWidth="0.4" opacity="0.4" strokeDasharray="1,1" />
-              )}
-              <text x={cam.mapX + 3} y={cam.mapY - 3} fill="#4d607a" fontSize="1.8" fontFamily="JetBrains Mono">{cam.id}</text>
-            </g>
+            <Marker
+              key={cam.id}
+              position={[cam.lat, cam.lng]}
+              icon={createCameraIcon(cam.status, selectedCam === cam.id)}
+              eventHandlers={{
+                click: () => onSelectCamera(cam.id),
+              }}
+            >
+              <Popup>
+                <div style={{
+                  background: '#111827',
+                  border: '1px solid #243348',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  minWidth: '180px',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  color: '#e2eaf3',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <div style={{
+                      width: '8px', height: '8px', borderRadius: '50%',
+                      background: cam.status === 'online' ? '#22c55e' : cam.status === 'warning' ? '#f59e0b' : '#ef4444',
+                    }} />
+                    <span style={{ fontWeight: 700, fontSize: '13px' }}>{cam.id}</span>
+                  </div>
+                  <div style={{ color: '#8899b4', fontSize: '11px', marginBottom: '8px' }}>{cam.name}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', fontSize: '10px' }}>
+                    <span style={{ color: '#4d607a' }}>FPS</span>
+                    <span style={{ color: '#e2eaf3', fontWeight: 600 }}>{cam.fps}</span>
+                    <span style={{ color: '#4d607a' }}>Vehicles</span>
+                    <span style={{ color: '#e2eaf3', fontWeight: 600 }}>{cam.vehicles}</span>
+                    <span style={{ color: '#4d607a' }}>Traffic</span>
+                    <span style={{
+                      fontWeight: 600, textTransform: 'capitalize',
+                      color: cam.traffic === 'high' ? '#f87171' : cam.traffic === 'moderate' ? '#fbbf24' : '#4ade80',
+                    }}>{cam.traffic}</span>
+                    <span style={{ color: '#4d607a' }}>Location</span>
+                    <span style={{ color: '#e2eaf3', fontWeight: 600, fontSize: '9px' }}>{cam.location}</span>
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
           ))}
+        </MapContainer>
 
-          {/* Congestion heat areas */}
-          <circle cx="38" cy="28" r="6" fill="#ef4444" opacity="0.04" />
-          <circle cx="60" cy="52" r="7" fill="#ef4444" opacity="0.05" />
-          <circle cx="28" cy="18" r="5" fill="#f59e0b" opacity="0.04" />
-        </svg>
-
-        {/* Selected camera tooltip */}
+        {/* Selected camera info card overlay */}
         {selectedCam && (() => {
           const cam = cameras.find(c => c.id === selectedCam);
           if (!cam) return null;
           return (
-            <div className="absolute top-3 right-3 bg-[#111827] border border-[#243348] rounded-md p-3 text-[11px] min-w-[160px]">
+            <div className="absolute top-3 right-3 z-[1000] bg-[#111827]/95 backdrop-blur-sm border border-[#243348] rounded-md p-3 text-[11px] min-w-[170px]">
               <div className="flex items-center gap-2 mb-2">
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cam.status === 'online' ? 'bg-[#22c55e]' : cam.status === 'warning' ? 'bg-[#f59e0b]' : 'bg-[#ef4444]'}`} />
                 <span className="font-semibold text-[#e2eaf3]">{cam.id}</span>
@@ -162,30 +212,25 @@ function CityMap({ onSelectCamera, selectedCam }: { onSelectCamera: (id: string)
                 <span className={`capitalize font-mono text-[10px] ${cam.traffic === 'high' ? 'text-[#f87171]' : cam.traffic === 'moderate' ? 'text-[#fbbf24]' : 'text-[#4ade80]'}`}>
                   {cam.traffic}
                 </span>
+                <span className="text-[#4d607a]">Coords</span>
+                <span className="text-[#8899b4] font-mono text-[9px]">{cam.lat.toFixed(3)}, {cam.lng.toFixed(3)}</span>
               </div>
             </div>
           );
         })()}
-
-        {/* Map legend bottom */}
-        <div className="absolute bottom-2 left-3 flex items-center gap-3 text-[9px] text-[#2a3a50] font-mono">
-          <span>DEMO DATA — NOT GEOGRAPHIC</span>
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-0.5 inline-block bg-[#ef4444] opacity-50" />HIGH CONGESTION
-          </span>
-        </div>
       </div>
     </div>
   );
 }
 
 // ── Alerts Panel ─────────────────────────────────────────────────────────
-function AlertsPanel() {
+function AlertsPanel({ alerts }: { alerts: any[] }) {
   const sevClass = (s: string) =>
     s === 'critical' ? 'severity-critical' :
-    s === 'warning' ? 'severity-warning' : 'severity-info';
+    s === 'warning' ? 'severity-warning' :
+    s === 'high' ? 'severity-warning' : 'severity-info';
   const sevColor = (s: string) =>
-    s === 'critical' ? '#f87171' : s === 'warning' ? '#fbbf24' : '#60a5fa';
+    s === 'critical' ? '#f87171' : (s === 'warning' || s === 'high') ? '#fbbf24' : '#60a5fa';
 
   return (
     <div className="bg-[#0c1220] border border-[#1a2a40] rounded-lg flex flex-col h-full">
@@ -197,17 +242,22 @@ function AlertsPanel() {
         <button className="text-[10px] text-[#3b82f6] hover:text-[#60a5fa]">View All →</button>
       </div>
       <div className="flex-1 overflow-y-auto scrollbar-hidden divide-y divide-[#0f1a2e]">
+        {alerts.length === 0 && (
+          <div className="p-4 text-center text-[10px] text-[#4d607a]">No recent alerts</div>
+        )}
         {alerts.map(alert => (
           <div key={alert.id} className={`p-3 ${sevClass(alert.severity)} transition-colors hover:opacity-90`}>
             <div className="flex items-start justify-between gap-2 mb-1">
               <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: sevColor(alert.severity) }}>
                 {alert.type}
               </span>
-              <span className="text-[9px] text-[#4d607a] font-mono whitespace-nowrap">{alert.time}</span>
+              <span className="text-[9px] text-[#4d607a] font-mono whitespace-nowrap">
+                {alert.timestamp ? (typeof alert.timestamp === 'number' ? new Date(alert.timestamp * 1000).toLocaleTimeString() : alert.timestamp) : alert.time}
+              </span>
             </div>
-            <div className="text-[11px] text-[#c8d6e8] font-semibold font-mono">{alert.subject}</div>
+            <div className="text-[11px] text-[#c8d6e8] font-semibold font-mono">{alert.plate_text || alert.subject}</div>
             <div className="flex items-center justify-between mt-1.5">
-              <span className="text-[9px] text-[#4d607a]">{alert.camera} · {alert.location}</span>
+              <span className="text-[9px] text-[#4d607a]">{alert.camera_id || alert.camera}</span>
               <button className="text-[9px] px-2 py-0.5 border border-[#243348] rounded text-[#8899b4] hover:border-[#3b82f6] hover:text-[#60a5fa] transition-colors">
                 View
               </button>
@@ -289,6 +339,24 @@ function SystemStatus() {
 export default function Dashboard({ onCameraSelect }: { onCameraSelect: (id: string) => void }) {
   const [chartFilter, setChartFilter] = useState<ChartFilter>('15m');
   const [selectedCam, setSelectedCam] = useState<string | null>('CAM-001');
+  const [kpiData, setKpiData] = useState<any>(initialKpiData);
+  const [liveAlerts, setLiveAlerts] = useState<any[]>(initialAlerts);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const overview = await api.getOverview();
+        setKpiData((prev: any) => ({ ...prev, ...overview }));
+        const alertsData = await api.getAlerts();
+        setLiveAlerts(alertsData.alerts || []);
+      } catch (err) {
+        console.error("Failed to fetch dashboard data", err);
+      }
+    };
+    fetchData();
+    const interval = setInterval(fetchData, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleCamSelect = (id: string) => {
     setSelectedCam(id);
@@ -373,7 +441,7 @@ export default function Dashboard({ onCameraSelect }: { onCameraSelect: (id: str
           <div className="lg:col-span-2">
             <CityMap onSelectCamera={handleCamSelect} selectedCam={selectedCam} />
           </div>
-          <AlertsPanel />
+          <AlertsPanel alerts={liveAlerts} />
         </div>
 
         {/* Charts row */}

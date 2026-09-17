@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Badge from "../components/Badge";
+import { api } from "../services/api";
 
 interface WatchlistEntry {
   id: string;
@@ -356,7 +357,7 @@ function AddVehicleModal({ onClose, onAdd }: {
   );
 }
 
-function WatchlistDetail({ entry, onClose }: { entry: WatchlistEntry; onClose: () => void }) {
+function WatchlistDetail({ entry, onClose, onRemove }: { entry: WatchlistEntry; onClose: () => void; onRemove?: () => void }) {
   return (
     <div
       style={{
@@ -453,7 +454,7 @@ function WatchlistDetail({ entry, onClose }: { entry: WatchlistEntry; onClose: (
           <button style={{ flex: 1, padding: "8px", borderRadius: 6, border: "1px solid #1e2d45", background: "transparent", color: "#94a3b8", fontSize: 12, cursor: "pointer" }}>
             {entry.active ? "Deactivate" : "Activate"}
           </button>
-          <button style={{ flex: 1, padding: "8px", borderRadius: 6, border: "1px solid #ef4444", background: "rgba(239,68,68,0.1)", color: "#f87171", fontSize: 12, cursor: "pointer" }}>
+          <button onClick={onRemove} style={{ flex: 1, padding: "8px", borderRadius: 6, border: "1px solid #ef4444", background: "rgba(239,68,68,0.1)", color: "#f87171", fontSize: 12, cursor: "pointer" }}>
             Remove
           </button>
         </div>
@@ -470,14 +471,54 @@ export default function Watchlist() {
   const [selected, setSelected] = useState<WatchlistEntry | null>(null);
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
 
+  const loadWatchlist = async () => {
+    try {
+      const data = await api.getWatchlist();
+      const plates = data.watchlist as string[];
+      const formatted = plates.map((plate, i) => {
+        const existing = INITIAL_WATCHLIST.find(e => e.plate_number === plate);
+        if (existing) return existing;
+        return {
+          id: `WL-${Math.floor(Math.random() * 9000) + 1000}`,
+          plate_number: plate,
+          vehicle_id: `VH-${Math.floor(Math.random() * 9000) + 1000}`,
+          description: "Registered via API",
+          reason: "Active Monitoring",
+          priority: "high" as const,
+          created_at: new Date().toISOString().slice(0, 10),
+          last_seen: "—",
+          last_camera: "—",
+          active: true,
+          alert_count: 0
+        };
+      });
+      setEntries(formatted);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    loadWatchlist();
+  }, []);
+
   const filtered = entries.filter((e) => {
     if (filterStatus === "active") return e.active;
     if (filterStatus === "inactive") return !e.active;
     return true;
   });
 
-  const handleAdd = (entry: Partial<WatchlistEntry>) => {
-    setEntries((prev) => [entry as WatchlistEntry, ...prev]);
+  const handleAdd = async (entry: Partial<WatchlistEntry>) => {
+    if (entry.plate_number) {
+      await api.addWatchlist(entry.plate_number);
+      loadWatchlist();
+    }
+  };
+
+  const handleRemove = async (plate_number: string) => {
+    await api.removeWatchlist(plate_number);
+    loadWatchlist();
+    setSelected(null);
   };
 
   return (
@@ -660,7 +701,13 @@ export default function Watchlist() {
 
       {/* Modals / Drawers */}
       {showAdd && <AddVehicleModal onClose={() => setShowAdd(false)} onAdd={handleAdd} />}
-      {selected && <WatchlistDetail entry={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <WatchlistDetail 
+          entry={selected} 
+          onClose={() => setSelected(null)} 
+          onRemove={() => handleRemove(selected.plate_number)} 
+        />
+      )}
     </div>
   );
 }

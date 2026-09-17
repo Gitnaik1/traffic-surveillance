@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Badge from "../components/Badge";
+import { api } from "../services/api";
 
 type AlertSeverity = "critical" | "high" | "medium" | "low";
 type AlertStatus = "active" | "acknowledged" | "resolved";
@@ -314,34 +315,36 @@ export default function Alerts() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [lastUpdate, setLastUpdate] = useState<string>("just now");
 
-  // Simulate live updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const seconds = Math.floor(Math.random() * 30) + 5;
-      setLastUpdate(`${seconds} seconds ago`);
-
-      // Occasionally add new alert
-      if (Math.random() < 0.3) {
-        const types = ["ANPR Mismatch", "Suspicious Vehicle", "Unusual Traffic"];
-        const newAlert: Alert = {
-          id: `ALT-${String(Math.floor(Math.random() * 9000) + 1000)}`,
-          type: types[Math.floor(Math.random() * types.length)],
-          severity: "medium",
-          vehicle_id: `VH-${Math.floor(Math.random() * 9000) + 1000}`,
-          plate_number: `KA${String(Math.floor(Math.random() * 99)).padStart(2, "0")}XY${Math.floor(Math.random() * 9000) + 1000}`,
-          camera_id: `CAM-00${Math.floor(Math.random() * 7) + 1}`,
-          location: ["MG Road", "Brigade Road", "Sarjapur Road", "Hosur Road"][Math.floor(Math.random() * 4)],
-          timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
-          status: "active",
-          confidence: Math.floor(Math.random() * 30) + 65,
-          isNew: true,
+  const loadAlerts = async () => {
+    try {
+      const data = await api.getAlerts();
+      const formatted = (data.alerts || []).map((a: any) => {
+        const existing = INITIAL_ALERTS.find(e => e.id === a.id?.toString());
+        if (existing) return existing;
+        return {
+          id: `ALT-${a.id}`,
+          type: a.type,
+          severity: a.severity || 'medium',
+          vehicle_id: `VH-???`,
+          plate_number: a.plate_text,
+          camera_id: a.camera_id,
+          location: a.location || 'Unknown',
+          timestamp: typeof a.timestamp === 'number' ? new Date(a.timestamp * 1000).toISOString().replace("T", " ").slice(0, 19) : a.timestamp,
+          status: 'active' as const,
+          confidence: 95,
+          isNew: false
         };
-        setAlerts((prev) => [newAlert, ...prev.slice(0, 19)]);
-        setTimeout(() => {
-          setAlerts((prev) => prev.map((a) => a.id === newAlert.id ? { ...a, isNew: false } : a));
-        }, 3000);
-      }
-    }, 8000);
+      });
+      setAlerts(formatted);
+      setLastUpdate("just now");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    loadAlerts();
+    const interval = setInterval(loadAlerts, 3000);
     return () => clearInterval(interval);
   }, []);
 

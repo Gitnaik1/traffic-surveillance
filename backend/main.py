@@ -3,6 +3,7 @@ import cv2
 import json
 import time
 import base64
+import numpy as np
 from typing import List
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +12,7 @@ import sys
 import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from backend import database
 from ml_service.pipeline import SurveillancePipeline
 from ml_service.reid import CrossCameraReID
 
@@ -243,15 +245,15 @@ def index_dashboard():
     return DASHBOARD_HTML
 
 
+@app.on_event("startup")
+def startup_event():
+    database.init_db()
+
 shared_reid_engine = CrossCameraReID()
 pipelines = {
     "CAM_01": SurveillancePipeline(camera_id="CAM_01", reid_engine=shared_reid_engine),
     "CAM_02": SurveillancePipeline(camera_id="CAM_02", reid_engine=shared_reid_engine),
 }
-
-# Watchlist data store
-watchlist_plates = ["KA01AB1234", "MH12DE5678", "DL03C9999"]
-recent_alerts = []
 
 class WatchlistAdd(BaseModel):
     plate_number: str
@@ -269,20 +271,31 @@ def get_cameras():
 
 @app.get("/api/watchlist")
 def get_watchlist():
-    return {"watchlist": watchlist_plates}
+    return {"watchlist": database.get_watchlist_plates()}
 
 @app.post("/api/watchlist")
 def add_watchlist(item: WatchlistAdd):
     plate = item.plate_number.strip().upper()
-    if plate and plate not in watchlist_plates:
-        watchlist_plates.append(plate)
-        for pipe in pipelines.values():
-            pipe.watchlist.add(plate)
-    return {"status": "success", "watchlist": watchlist_plates}
+    if plate:
+        database.add_to_watchlist(plate)
+    return {"status": "success", "watchlist": database.get_watchlist_plates()}
+
+@app.delete("/api/watchlist/{plate}")
+def remove_watchlist(plate: str):
+    database.remove_from_watchlist(plate.strip().upper())
+    return {"status": "success"}
 
 @app.get("/api/alerts")
 def get_alerts():
-    return {"alerts": recent_alerts[-20:]}
+    return {"alerts": database.get_recent_alerts()}
+
+@app.get("/api/anpr")
+def get_anpr():
+    return {"anpr": database.get_recent_anpr(50)}
+
+@app.get("/api/analytics/overview")
+def get_overview():
+    return database.get_overview_stats()
 
 def generate_synthetic_frame(camera_id, frame_num):
     """Generate a synthetic traffic video frame for demo when no camera hardware is attached."""
@@ -308,8 +321,8 @@ def generate_synthetic_frame(camera_id, frame_num):
     return img
 
 @app.websocket("/ws/camera/{camera_id}")
-def websocket_camera_feed(websocket: WebSocket, camera_id: str):
-    asyncio.run(handle_camera_stream(websocket, camera_id))
+async def websocket_camera_feed(websocket: WebSocket, camera_id: str):
+    await handle_camera_stream(websocket, camera_id)
 
 async def handle_camera_stream(websocket: WebSocket, camera_id: str):
     await websocket.accept()
@@ -334,10 +347,6 @@ async def handle_camera_stream(websocket: WebSocket, camera_id: str):
 
             processed_frame, metadata = pipeline.process_frame(frame)
             frame_count += 1
-
-            # Log new alerts
-            for alert in metadata.get('alerts', []):
-                recent_alerts.append(alert)
 
             # Encode frame to JPEG Base64 string for WebSocket transmission
             _, buffer = cv2.imencode('.jpg', processed_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
