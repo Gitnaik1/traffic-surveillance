@@ -1,45 +1,80 @@
 import { useState } from 'react'
 import { Search, MapPin, Clock, Route, Gauge, Shield, ChevronDown } from 'lucide-react'
 
-const TRAJECTORY_EVENTS = [
-  { time: '10:21:14', camera: 'CAM-001', location: 'MG Road Junction', event: 'Vehicle Detected', confidence: 91.2, lat: 12.9716, lng: 77.5946 },
-  { time: '10:35:08', camera: 'CAM-003', location: 'Brigade Rd Crossing', event: 'Vehicle Re-identified', confidence: 93.4, lat: 12.9719, lng: 77.6064 },
-  { time: '10:43:52', camera: 'CAM-007', location: 'Residency Rd', event: 'Vehicle Detected', confidence: 94.6, lat: 12.9731, lng: 77.6145 },
-  { time: '10:47:22', camera: 'CAM-004', location: 'Richmond Rd', event: 'Currently Tracking', confidence: 94.6, lat: 12.9722, lng: 77.6091 },
-]
+const VEHICLE_DATA: Record<string, any> = {
+  'UTX-VH-00124': {
+    plate: 'KA01AB1234',
+    events: [
+      { time: '10:21:14', camera: 'CAM-001', location: 'MG Road Junction', event: 'Vehicle Detected', confidence: 91.2 },
+      { time: '10:35:08', camera: 'CAM-003', location: 'Brigade Rd Crossing', event: 'Vehicle Re-identified', confidence: 93.4 },
+      { time: '10:43:52', camera: 'CAM-007', location: 'Residency Rd', event: 'Vehicle Detected', confidence: 94.6 },
+      { time: '10:47:22', camera: 'CAM-004', location: 'Richmond Rd', event: 'Currently Tracking', confidence: 94.6 },
+    ],
+    journey: { totalTime: '22m 38s', cameras: 4, distance: '7.2 km', avgSpeed: '31 km/h', reidConf: 91.4 },
+    evidence: [
+      { label: 'Plate Match', value: 'Strong', percent: 96, color: '#22c55e' },
+      { label: 'Appearance Similarity', value: '88%', percent: 88, color: '#3b82f6' },
+      { label: 'Vehicle Type', value: 'Match', percent: 100, color: '#22c55e' },
+      { label: 'Color', value: 'Match', percent: 94, color: '#22c55e' },
+      { label: 'Time/Route Consistency', value: 'High', percent: 92, color: '#3b82f6' },
+    ],
+    nodes: [
+      { id: 'CAM-001', x: 80, y: 200, time: '10:21:14', label: 'MG Road Jn.' },
+      { id: 'CAM-003', x: 220, y: 140, time: '10:35:08', label: 'Brigade Rd' },
+      { id: 'CAM-007', x: 360, y: 100, time: '10:43:52', label: 'Residency Rd' },
+      { id: 'CAM-004', x: 280, y: 220, time: '10:47:22', label: 'Richmond Rd' },
+    ]
+  },
+  'UTX-VH-00127': {
+    plate: 'TN09EF3456',
+    events: [
+      { time: '14:15:00', camera: 'CAM-002', location: 'Koramangala 80ft', event: 'Vehicle Detected', confidence: 89.5 },
+      { time: '14:22:30', camera: 'CAM-005', location: 'Indiranagar 100ft', event: 'Vehicle Re-identified', confidence: 85.2 },
+      { time: '14:30:15', camera: 'CAM-008', location: 'Domlur Flyover', event: 'Currently Tracking', confidence: 92.1 },
+    ],
+    journey: { totalTime: '15m 15s', cameras: 3, distance: '5.1 km', avgSpeed: '40 km/h', reidConf: 88.9 },
+    evidence: [
+      { label: 'Plate Match', value: 'Moderate', percent: 82, color: '#f59e0b' },
+      { label: 'Appearance Similarity', value: '91%', percent: 91, color: '#22c55e' },
+      { label: 'Vehicle Type', value: 'Match', percent: 98, color: '#22c55e' },
+      { label: 'Color', value: 'Match', percent: 95, color: '#22c55e' },
+      { label: 'Time/Route Consistency', value: 'Medium', percent: 78, color: '#f59e0b' },
+    ],
+    nodes: [
+      { id: 'CAM-002', x: 100, y: 100, time: '14:15:00', label: 'Koramangala' },
+      { id: 'CAM-005', x: 250, y: 80, time: '14:22:30', label: 'Indiranagar' },
+      { id: 'CAM-008', x: 380, y: 180, time: '14:30:15', label: 'Domlur' },
+    ]
+  },
+  'UTX-VH-00130': {
+    plate: 'GJ05KL3344',
+    events: [
+      { time: '08:05:12', camera: 'CAM-009', location: 'Hebbal Flyover', event: 'Vehicle Detected', confidence: 98.2 },
+      { time: '08:18:45', camera: 'CAM-011', location: 'Airport Road', event: 'Currently Tracking', confidence: 97.5 },
+    ],
+    journey: { totalTime: '13m 33s', cameras: 2, distance: '12.4 km', avgSpeed: '55 km/h', reidConf: 97.8 },
+    evidence: [
+      { label: 'Plate Match', value: 'Strong', percent: 99, color: '#22c55e' },
+      { label: 'Appearance Similarity', value: '95%', percent: 95, color: '#22c55e' },
+      { label: 'Vehicle Type', value: 'Match', percent: 100, color: '#22c55e' },
+      { label: 'Color', value: 'Match', percent: 97, color: '#22c55e' },
+      { label: 'Time/Route Consistency', value: 'High', percent: 98, color: '#22c55e' },
+    ],
+    nodes: [
+      { id: 'CAM-009', x: 150, y: 250, time: '08:05:12', label: 'Hebbal' },
+      { id: 'CAM-011', x: 350, y: 50, time: '08:18:45', label: 'Airport Rd' },
+    ]
+  }
+}
 
-const JOURNEY = { totalTime: '22m 38s', cameras: 3, distance: '7.2 km', avgSpeed: '31 km/h', reidConf: 91.4 }
-
-const EVIDENCE = [
-  { label: 'Plate Match', value: 'Strong', percent: 96, color: '#22c55e' },
-  { label: 'Appearance Similarity', value: '88%', percent: 88, color: '#3b82f6' },
-  { label: 'Vehicle Type', value: 'Match', percent: 100, color: '#22c55e' },
-  { label: 'Color', value: 'Match', percent: 94, color: '#22c55e' },
-  { label: 'Time/Route Consistency', value: 'High', percent: 92, color: '#3b82f6' },
-  { label: 'Overall Match Confidence', value: '91.4%', percent: 91.4, color: '#06b6d4' },
-]
-
-const VEHICLES = [
-  { id: 'UTX-VH-00124', plate: 'KA01AB1234' },
-  { id: 'UTX-VH-00127', plate: 'TN09EF3456' },
-  { id: 'UTX-VH-00130', plate: 'GJ05KL3344' },
-]
+const VEHICLE_LIST = Object.entries(VEHICLE_DATA).map(([id, data]) => ({ id, plate: data.plate }))
 
 // Simplified SVG map with camera nodes
-function TrajectoryMap({ activeEvent }: { activeEvent: number }) {
-  // Normalized positions for the 4 cameras in SVG space
-  const nodes = [
-    { id: 'CAM-001', x: 80, y: 200, time: '10:21:14', label: 'MG Road Jn.' },
-    { id: 'CAM-003', x: 220, y: 140, time: '10:35:08', label: 'Brigade Rd' },
-    { id: 'CAM-007', x: 360, y: 100, time: '10:43:52', label: 'Residency Rd' },
-    { id: 'CAM-004', x: 280, y: 220, time: '10:47:22', label: 'Richmond Rd' },
-  ]
-
-  const routes = [
-    [nodes[0], nodes[1]],
-    [nodes[1], nodes[2]],
-    [nodes[2], nodes[3]],
-  ]
+function TrajectoryMap({ activeEvent, nodes }: { activeEvent: number, nodes: any[] }) {
+  const routes = []
+  for (let i = 0; i < nodes.length - 1; i++) {
+    routes.push([nodes[i], nodes[i + 1]])
+  }
 
   return (
     <div
@@ -93,7 +128,7 @@ function TrajectoryMap({ activeEvent }: { activeEvent: number }) {
 
         {/* Camera nodes */}
         {nodes.map((node, i) => {
-          const isCurrent = i === 3
+          const isCurrent = i === nodes.length - 1
           const isVisited = i < activeEvent
           const isActive = i === activeEvent - 1
 
@@ -141,9 +176,17 @@ function TrajectoryMap({ activeEvent }: { activeEvent: number }) {
 }
 
 export default function TrajectoriesPage() {
-  const [selectedVehicle, setSelectedVehicle] = useState(VEHICLES[0])
+  const [selectedVehicle, setSelectedVehicle] = useState(VEHICLE_LIST[0])
   const [showDropdown, setShowDropdown] = useState(false)
-  const [activeEvent, setActiveEvent] = useState(TRAJECTORY_EVENTS.length)
+  const activeData = VEHICLE_DATA[selectedVehicle.id]
+  const [activeEvent, setActiveEvent] = useState(activeData.events.length)
+
+  // When vehicle changes, reset active event to max
+  const handleSelect = (v: any) => {
+    setSelectedVehicle(v)
+    setShowDropdown(false)
+    setActiveEvent(VEHICLE_DATA[v.id].events.length)
+  }
 
   return (
     <div className="space-y-4">
@@ -169,10 +212,10 @@ export default function TrajectoriesPage() {
                   className="absolute left-0 right-0 top-full mt-1 rounded-lg border z-20 overflow-hidden"
                   style={{ backgroundColor: '#141c30', borderColor: '#253656' }}
                 >
-                  {VEHICLES.map((v) => (
+                  {VEHICLE_LIST.map((v) => (
                     <button
                       key={v.id}
-                      onClick={() => { setSelectedVehicle(v); setShowDropdown(false) }}
+                      onClick={() => handleSelect(v)}
                       className="flex flex-col w-full text-left px-3 py-2 text-xs transition-colors"
                       style={{ borderBottom: '1px solid #1e2d4a', color: '#f0f4ff' }}
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1a2440')}
@@ -216,7 +259,7 @@ export default function TrajectoriesPage() {
               </div>
             </div>
             <div className="p-4">
-              <TrajectoryMap activeEvent={activeEvent} />
+              <TrajectoryMap activeEvent={activeEvent} nodes={activeData.nodes} />
             </div>
           </div>
 
@@ -234,7 +277,7 @@ export default function TrajectoriesPage() {
                   style={{ backgroundColor: '#1e2d4a' }}
                 />
                 <div className="space-y-3">
-                  {TRAJECTORY_EVENTS.map((ev, i) => (
+                  {activeData.events.map((ev: any, i: number) => (
                     <button
                       key={i}
                       onClick={() => setActiveEvent(i + 1)}
@@ -295,10 +338,10 @@ export default function TrajectoriesPage() {
             </div>
             <div className="p-4 grid grid-cols-2 gap-3">
               {[
-                { label: 'Total Journey Time', value: JOURNEY.totalTime, color: '#f0f4ff', icon: <Clock size={14} color="#3b82f6" /> },
-                { label: 'Cameras Visited', value: String(JOURNEY.cameras), color: '#06b6d4', icon: <MapPin size={14} color="#06b6d4" /> },
-                { label: 'Est. Distance', value: JOURNEY.distance, color: '#f0f4ff', icon: <Route size={14} color="#22c55e" /> },
-                { label: 'Average Speed', value: JOURNEY.avgSpeed, color: '#f59e0b', icon: <Gauge size={14} color="#f59e0b" /> },
+                { label: 'Total Journey Time', value: activeData.journey.totalTime, color: '#f0f4ff', icon: <Clock size={14} color="#3b82f6" /> },
+                { label: 'Cameras Visited', value: String(activeData.journey.cameras), color: '#06b6d4', icon: <MapPin size={14} color="#06b6d4" /> },
+                { label: 'Est. Distance', value: activeData.journey.distance, color: '#f0f4ff', icon: <Route size={14} color="#22c55e" /> },
+                { label: 'Average Speed', value: activeData.journey.avgSpeed, color: '#f59e0b', icon: <Gauge size={14} color="#f59e0b" /> },
               ].map((item) => (
                 <div key={item.label} className="p-3 rounded-lg border" style={{ backgroundColor: '#141c30', borderColor: '#1e2d4a' }}>
                   <div className="mb-2">{item.icon}</div>
@@ -314,11 +357,11 @@ export default function TrajectoriesPage() {
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs" style={{ color: '#4a6080' }}>Re-ID Confidence</span>
                   <span className="text-sm font-bold font-mono" style={{ color: '#22c55e', fontFamily: "'JetBrains Mono', monospace" }}>
-                    {JOURNEY.reidConf}%
+                    {activeData.journey.reidConf}%
                   </span>
                 </div>
                 <div className="h-1.5 rounded-full" style={{ backgroundColor: '#1e2d4a' }}>
-                  <div className="h-full rounded-full" style={{ width: `${JOURNEY.reidConf}%`, backgroundColor: '#22c55e' }} />
+                  <div className="h-full rounded-full" style={{ width: `${activeData.journey.reidConf}%`, backgroundColor: '#22c55e' }} />
                 </div>
               </div>
             </div>
@@ -331,7 +374,7 @@ export default function TrajectoriesPage() {
               <span className="text-xs font-semibold" style={{ color: '#f0f4ff' }}>Identity Match Evidence</span>
             </div>
             <div className="p-4 space-y-3">
-              {EVIDENCE.map((ev) => (
+              {activeData.evidence.map((ev: any) => (
                 <div key={ev.label}>
                   <div className="flex justify-between mb-1">
                     <span className="text-xs" style={{ color: '#8899bb' }}>{ev.label}</span>
