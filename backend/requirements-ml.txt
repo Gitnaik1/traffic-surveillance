@@ -1,0 +1,26 @@
+# UrbanTrax ML Service — AI/Computer-Vision requirements
+# Install with: pip install -r requirements-ml.txt
+# Requires Python 3.9+ and ~4 GB disk space for models.
+#
+# NOTE: opencv-contrib-python replaces opencv-python.
+#       Do NOT install both — they conflict on the cv2 module.
+
+# Core vision
+opencv-contrib-python>=4.10.0   # Full OpenCV with CLAHE, SIFT, etc.
+numpy>=1.24.0
+scipy>=1.11.0                   # VehicleTracker centroid matching
+
+# YOLO vehicle detection & ByteTrack tracking (Person 1 + Person 2)
+ultralytics>=8.0.0
+supervision>=0.21.0
+
+
+# License-plate OCR (Person 2)
+easyocr>=1.7.0
+
+# Pillow (used by easyocr / ultralytics internally)
+pillow>=9.5.0
+
+# Optional: PaddleOCR for higher accuracy OCR (heavy — only install if needed)
+# paddlepaddle
+# paddleocr>=2.7.0
