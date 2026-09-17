@@ -7,7 +7,7 @@ import {
 import { getTrafficStats, TrafficStats } from "../services/api";
 import { useApp } from "../context/AppContext";
 
-// ΓöÇΓöÇ Mock Data (Fallback) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Mock Data (Fallback) ──────────────────────────────────────────────────────
 
 const MOCK_TRAFFIC_STATS: TrafficStats = {
   kpi: {
@@ -67,10 +67,10 @@ const speedData = [
 ];
 
 const peakData = [
-  { slot: "6ΓÇô7 AM", vehicles: 890 }, { slot: "7ΓÇô8 AM", vehicles: 1450 },
-  { slot: "8ΓÇô9 AM", vehicles: 1120 }, { slot: "12ΓÇô1 PM", vehicles: 810 },
-  { slot: "5ΓÇô6 PM", vehicles: 1380 }, { slot: "6ΓÇô7 PM", vehicles: 1820 },
-  { slot: "7ΓÇô8 PM", vehicles: 1530 }, { slot: "8ΓÇô9 PM", vehicles: 980 },
+  { slot: "6–7 AM", vehicles: 890 }, { slot: "7–8 AM", vehicles: 1450 },
+  { slot: "8–9 AM", vehicles: 1120 }, { slot: "12–1 PM", vehicles: 810 },
+  { slot: "5–6 PM", vehicles: 1380 }, { slot: "6–7 PM", vehicles: 1820 },
+  { slot: "7–8 PM", vehicles: 1530 }, { slot: "8–9 PM", vehicles: 980 },
 ];
 
 const PIE_COLORS = ["#2563eb", "#06b6d4", "#10b981", "#f59e0b", "#8b5cf6"];
@@ -87,7 +87,7 @@ const CHART_TOOLTIP_STYLE = {
   labelStyle: { color: "#94a3b8", fontSize: 11 },
 };
 
-// ΓöÇΓöÇ Road nodes for mock heatmap ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Road nodes for mock heatmap ───────────────────────────────────────────────
 
 const HEATMAP_SEGMENTS = [
   // MG Road (horizontal, center)
@@ -131,7 +131,7 @@ const LEVEL_WIDTH: Record<string, number> = {
   low: 2, moderate: 3.5, high: 5, severe: 6.5,
 };
 
-// ΓöÇΓöÇ Subcomponents ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Subcomponents ─────────────────────────────────────────────────────────────
 
 function KpiCard({ label, value, sub, color = "#2563eb" }: { label: string; value: string | number; sub?: string; color?: string }) {
   return (
@@ -279,7 +279,7 @@ function CongestionHeatmap() {
   );
 }
 
-// ΓöÇΓöÇ Main Page ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 const FILTERS_TIME = ["Last 15 min", "Last hour", "Today", "Yesterday", "Custom"];
 const FILTERS_CAMERA = ["All Cameras", "CAM-001", "CAM-002", "CAM-003", "CAM-004", "CAM-005"];
@@ -310,7 +310,7 @@ export default function TrafficAnalytics() {
     <div style={{ padding: "24px", overflowY: "auto", height: "100%", background: "#0b0f1a" }}>
       {!backendOnline && (
         <div style={{ background: "#2a1a1a", border: "1px solid #ef4444", color: "#f87171", padding: "10px 16px", borderRadius: 8, fontSize: 14, marginBottom: 20 }}>
-          Backend offline ΓÇö showing cached data
+          Backend offline — showing cached data
         </div>
       )}
 
@@ -404,7 +404,7 @@ export default function TrafficAnalytics() {
             <KpiCard label="Active Alerts" value={stats.kpi.active_alerts} sub="Needs Attention" color="#f59e0b" />
             <KpiCard label="Congestion Score" value={stats.kpi.congestion_score} sub="/ 100 Index" color="#fbbf24" />
             <KpiCard label="Active Cameras" value={`${stats.kpi.active_cameras.online}/${stats.kpi.active_cameras.total}`} sub="Online / Total" color="#34d399" />
-            <KpiCard label="Most Congested" value="MG Road" sub="CAM-003 ┬╖ 94% confidence" color="#f87171" />
+            <KpiCard label="Most Congested" value="MG Road" sub="CAM-003 • 94% confidence" color="#f87171" />
           </div>
 
           {/* Charts grid */}
@@ -507,7 +507,7 @@ export default function TrafficAnalytics() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 14 }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>
-                Congestion Heatmap ΓÇö Bengaluru City
+                Congestion Heatmap — Bengaluru City
               </div>
               <CongestionHeatmap />
             </div>
@@ -529,13 +529,13 @@ export default function TrafficAnalytics() {
               </div>
 
               {[
-                { label: "Peak Traffic Period", value: "6:00 PM ΓÇô 7:00 PM", color: "#f87171" },
+                { label: "Peak Traffic Period", value: "6:00 PM – 7:00 PM", color: "#f87171" },
                 { label: "Highest Traffic Camera", value: "CAM-003", color: "#60a5fa" },
                 { label: "Current Congestion", value: "Moderate", color: "#fbbf24" },
                 { label: "Average Speed", value: "31.4 km/h", color: "#22d3ee" },
                 { label: "Average Travel Time", value: "15m 42s", color: "#a78bfa" },
                 { label: "Vehicles Today", value: stats.kpi.vehicles_detected.toLocaleString(), color: "#34d399" },
-                { label: "Busiest Junction", value: "MG Road ├ù Brigade", color: "#f87171" },
+                { label: "Busiest Junction", value: "MG Road × Brigade", color: "#f87171" },
                 { label: "Cameras Online", value: `${stats.kpi.active_cameras.online} / ${stats.kpi.active_cameras.total}`, color: "#34d399" },
               ].map((item) => (
                 <div

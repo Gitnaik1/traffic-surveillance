@@ -5,14 +5,14 @@ import { Card, Toggle, Btn, SectionHeader, InputField, Input, Select } from "../
 type Section = "general" | "notifications" | "thresholds" | "anpr" | "tracking" | "cameras" | "users" | "security";
 
 const TABS: { id: Section; label: string; icon: string }[] = [
-  { id: "general", label: "General", icon: "Γè₧" },
-  { id: "notifications", label: "Notifications", icon: "ΓÜæ" },
-  { id: "thresholds", label: "Alert Thresholds", icon: "Γûª" },
-  { id: "anpr", label: "ANPR Settings", icon: "Γ¼ó" },
-  { id: "tracking", label: "Tracking", icon: "Γùê" },
-  { id: "cameras", label: "Camera Settings", icon: "Γùë" },
+  { id: "general", label: "General", icon: "⚙" },
+  { id: "notifications", label: "Notifications", icon: "⚡" },
+  { id: "thresholds", label: "Alert Thresholds", icon: "▪" },
+  { id: "anpr", label: "ANPR Settings", icon: "⬢" },
+  { id: "tracking", label: "Tracking", icon: "◆" },
+  { id: "cameras", label: "Camera Settings", icon: "◉" },
   { id: "users", label: "User Management", icon: "ΓùÄ" },
-  { id: "security", label: "Security", icon: "Γ¼í" },
+  { id: "security", label: "Security", icon: "⬟" },
 ];
 
 export default function Settings() {
@@ -38,7 +38,7 @@ export default function Settings() {
         enable_congestion_alerts: String(res.enable_congestion_alerts) === "true",
         alert_email: res.alert_email || "admin@urbantrax.gov.in",
         timezone: res.timezone || "Asia/Kolkata",
-        site_name: res.site_name || "UrbanTrax AI ΓÇö Bangalore",
+        site_name: res.site_name || "UrbanTrax AI — Bangalore",
       });
       setLoading(false);
     }).catch((e) => {
@@ -59,7 +59,7 @@ export default function Settings() {
         enable_congestion_alerts: true,
         alert_email: "admin@urbantrax.gov.in",
         timezone: "Asia/Kolkata",
-        site_name: "UrbanTrax AI ΓÇö Bangalore",
+        site_name: "UrbanTrax AI — Bangalore",
       });
       setLoading(false);
     });
@@ -132,7 +132,7 @@ export default function Settings() {
               <div className="flex gap-2">
                 <Btn variant="ghost" size="sm" onClick={() => window.location.reload()}>Reset</Btn>
                 <Btn size="sm" onClick={handleSave}>
-                  {saved ? "Γ£ô Saved" : "Save Changes"}
+                  {saved ? "✓ Saved" : "Save Changes"}
                 </Btn>
               </div>
             </div>
@@ -195,9 +195,9 @@ function GeneralSection({ settings, updateSetting }: { settings: Record<string, 
       <SettingRow label="Timezone" description="Used for timestamps in alerts, reports, and logs.">
         <div className="w-48">
           <Select value={settings.timezone} onChange={(v) => updateSetting("timezone", v)} options={[
-            { value: "Asia/Kolkata", label: "IST ΓÇö Asia/Kolkata" },
+            { value: "Asia/Kolkata", label: "IST — Asia/Kolkata" },
             { value: "UTC", label: "UTC" },
-            { value: "Asia/Singapore", label: "SGT ΓÇö Asia/Singapore" },
+            { value: "Asia/Singapore", label: "SGT — Asia/Singapore" },
           ]} />
         </div>
       </SettingRow>

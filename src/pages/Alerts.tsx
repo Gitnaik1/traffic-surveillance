@@ -75,7 +75,7 @@ function AlertDetailDrawer({ alert, onClose, onAcknowledge }: {
               justifyContent: "center",
             }}
           >
-            ├ù
+            ×
           </button>
         </div>
 
@@ -118,9 +118,9 @@ function AlertDetailDrawer({ alert, onClose, onAcknowledge }: {
           {[
             ["Alert ID", alert.id],
             ["Type", alert.type],
-            ["Plate Number", alert.plate || "ΓÇö"],
+            ["Plate Number", alert.plate || "—"],
             ["Camera", alert.camera],
-            ["Location", alert.location || "ΓÇö"],
+            ["Location", alert.location || "—"],
             ["Timestamp", alert.timestamp],
             ["Subject", alert.subject],
           ].map(([key, val]) => (
@@ -203,7 +203,7 @@ function AlertDetailDrawer({ alert, onClose, onAcknowledge }: {
   );
 }
 
-// ΓöÇΓöÇ Main Page ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Alerts() {
   const { alerts, alertsLoading, dismissAlert, refreshAlerts } = useApp();
@@ -265,7 +265,7 @@ export default function Alerts() {
             LIVE
           </span>
         </div>
-        <span style={{ fontSize: 12, color: "#64748b" }}>WebSocket connected ┬╖ Showing live alerts</span>
+        <span style={{ fontSize: 12, color: "#64748b" }}>WebSocket connected • Showing live alerts</span>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           <button
             onClick={handleAcknowledgeAll}
@@ -431,9 +431,9 @@ export default function Alerts() {
                 <td style={{ padding: "10px 14px", fontSize: 12, color: "#f1f5f9", whiteSpace: "nowrap" }}>{alert.type}</td>
                 <td style={{ padding: "10px 14px" }}><Badge severity={alert.severity} /></td>
                 <td style={{ padding: "10px 14px", fontSize: 11, color: "#94a3b8", fontFamily: "JetBrains Mono, monospace" }}>{alert.subject}</td>
-                <td style={{ padding: "10px 14px", fontSize: 12, color: "#f1f5f9", fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>{alert.plate || "ΓÇö"}</td>
+                <td style={{ padding: "10px 14px", fontSize: 12, color: "#f1f5f9", fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>{alert.plate || "—"}</td>
                 <td style={{ padding: "10px 14px", fontSize: 12, color: "#22d3ee", fontFamily: "JetBrains Mono, monospace" }}>{alert.camera}</td>
-                <td style={{ padding: "10px 14px", fontSize: 12, color: "#94a3b8", whiteSpace: "nowrap" }}>{alert.location || "ΓÇö"}</td>
+                <td style={{ padding: "10px 14px", fontSize: 12, color: "#94a3b8", whiteSpace: "nowrap" }}>{alert.location || "—"}</td>
                 <td style={{ padding: "10px 14px", fontSize: 11, color: "#64748b", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap" }}>{alert.timestamp.slice(11)}</td>
                 <td style={{ padding: "10px 14px" }}><Badge severity={alert.acknowledged ? "resolved" : "active"} /></td>
                 <td style={{ padding: "10px 14px" }}>
@@ -450,7 +450,7 @@ export default function Alerts() {
                         cursor: "pointer",
                       }}
                     >
-                      View ΓåÆ
+                      View Details
                     </button>
                     {!alert.acknowledged && (
                       <button

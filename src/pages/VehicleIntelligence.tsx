@@ -215,7 +215,7 @@ export default function VehicleIntelligence() {
           style={{ borderColor: '#1e2d4a' }}
         >
           <span className="text-xs" style={{ color: '#4a6080' }}>
-            {filtered.length} vehicles ┬╖ Page {page} of {totalPages}
+            {filtered.length} vehicles • Page {page} of {totalPages}
           </span>
           <div className="flex items-center gap-1">
             <button

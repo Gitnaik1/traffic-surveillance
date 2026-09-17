@@ -108,7 +108,7 @@ function ANPRModal({ record, onClose }: ModalProps) {
                 { label: 'Status', node: <StatusBadge status={status as any} /> },
                 { label: 'Camera', value: record.camera, mono: true, accent: '#06b6d4' },
                 { label: 'Timestamp', value: record.timestamp, mono: true },
-                { label: 'Vehicle ID', value: record.vehicle_id || 'ΓÇö', mono: true, accent: '#3b82f6' },
+                { label: 'Vehicle ID', value: record.vehicle_id || '—', mono: true, accent: '#3b82f6' },
                 { label: 'Flagged', value: record.flagged ? 'Yes' : 'No', accent: record.flagged ? '#ef4444' : '#8899bb' },
               ].map((item) => (
                 <div key={item.label} className="p-3 rounded-lg border" style={{ backgroundColor: '#141c30', borderColor: '#1e2d4a' }}>
@@ -248,7 +248,7 @@ export default function ANPRPage() {
                     </td>
                     <td className="px-3 py-2.5" style={{ color: '#8899bb' }}>{r.vehicle_type || 'Unknown'}</td>
                     <td className="px-3 py-2.5"><ConfidenceBadge value={r.confidence} label={false} /></td>
-                    <td className="px-3 py-2.5 font-mono text-xs" style={{ color: !r.vehicle_id ? '#2d3f5a' : '#3b82f6', fontFamily: "'JetBrains Mono', monospace" }}>{r.vehicle_id || 'ΓÇö'}</td>
+                    <td className="px-3 py-2.5 font-mono text-xs" style={{ color: !r.vehicle_id ? '#2d3f5a' : '#3b82f6', fontFamily: "'JetBrains Mono', monospace" }}>{r.vehicle_id || '—'}</td>
                     <td className="px-3 py-2.5"><StatusBadge status={status as any} /></td>
                     <td className="px-3 py-2.5">
                       <button
@@ -271,7 +271,7 @@ export default function ANPRPage() {
 
         {/* Pagination */}
         <div className="flex items-center justify-between px-4 py-3 border-t" style={{ borderColor: '#1e2d4a' }}>
-          <span className="text-xs" style={{ color: '#4a6080' }}>{filteredReads.length} records ┬╖ Page {page} of {totalPages}</span>
+          <span className="text-xs" style={{ color: '#4a6080' }}>{filteredReads.length} records • Page {page} of {totalPages}</span>
           <div className="flex items-center gap-1">
             <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded border" style={{ backgroundColor: '#141c30', borderColor: '#1e2d4a', color: page === 1 ? '#2d3f5a' : '#8899bb' }}>
               <ChevronLeft size={14} />

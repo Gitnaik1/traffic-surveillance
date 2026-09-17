@@ -56,7 +56,7 @@ export default function SystemHealth() {
 
   // Use cached data if failed to load fresh
   if (!healthData) {
-    return <div style={{ padding: "24px", color: "#ef4444" }}>Backend offline ΓÇö showing cached data</div>;
+    return <div style={{ padding: "24px", color: "#ef4444" }}>Backend offline — showing cached data</div>;
   }
 
   const { services, cameras, stats, resources } = healthData;
