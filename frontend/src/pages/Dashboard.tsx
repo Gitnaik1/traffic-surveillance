@@ -84,15 +84,22 @@ function CityMap({ cameras, onSelectCamera, selectedCam }: { cameras: Camera[]; 
   ];
 
   const mapCameras: MapCamera[] = cameras.length > 0
-    ? cameras.map((c: any, i) => ({
-        id: c.id,
-        name: c.name || `Junction Camera ${c.id}`,
-        lat: c.lat || c.latitude || BENGALURU_JUNCTIONS[i % BENGALURU_JUNCTIONS.length].lat,
-        lng: c.lng || c.longitude || BENGALURU_JUNCTIONS[i % BENGALURU_JUNCTIONS.length].lng,
-        status: c.status === 'online' ? 'active' : c.status === 'warning' ? 'warning' : 'offline',
-        vehicleCount: c.vehicles || Math.floor(Math.random() * 50) + 20,
-        speedLimit: 60,
-      }))
+    ? cameras.map((c: any, i) => {
+        let lat = c.lat || c.latitude;
+        let lng = c.lng || c.longitude;
+        // Sanitize legacy or pixel coordinates (e.g. lat=52, lng=38) to real Bengaluru coordinates
+        if (!lat || lat > 30 || lat < 10) lat = BENGALURU_JUNCTIONS[i % BENGALURU_JUNCTIONS.length].lat;
+        if (!lng || lng < 70 || lng > 85) lng = BENGALURU_JUNCTIONS[i % BENGALURU_JUNCTIONS.length].lng;
+        return {
+          id: c.id,
+          name: c.name || `Junction Camera ${c.id}`,
+          lat,
+          lng,
+          status: c.status === 'online' ? 'active' : c.status === 'warning' ? 'warning' : 'offline',
+          vehicleCount: c.vehicles || Math.floor(Math.random() * 50) + 20,
+          speedLimit: 60,
+        };
+      })
     : BENGALURU_JUNCTIONS;
 
   return (

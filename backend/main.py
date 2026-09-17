@@ -162,25 +162,30 @@ def _seed_initial_data(c, conn):
     """Seed cameras, default settings, and sample data if tables are empty."""
 
     # Cameras
+    cameras = [
+        ("CAM-001", "MG Road Junction", "MG Road, Zone A", "Zone A", 12.9716, 77.5946, 38, 28, "online", 30, "high", 47),
+        ("CAM-002", "Yeshwanthpur Junction", "Yeshwanthpur, Zone B", "Zone B", 13.0213, 77.5545, 52, 22, "online", 24, "moderate", 29),
+        ("CAM-003", "Hebbal Flyover", "Hebbal, Zone A", "Zone A", 13.0358, 77.5970, 28, 18, "online", 24, "high", 37),
+        ("CAM-004", "Airport Road", "Airport Rd, Zone C", "Zone C", 13.1009, 77.5982, 64, 12, "online", 25, "moderate", 22),
+        ("CAM-005", "Electronic City Toll", "Electronic City, Zone D", "Zone D", 12.8452, 77.6602, 72, 60, "warning", 18, "low", 11),
+        ("CAM-006", "Silk Board Junction", "Silk Board, Zone D", "Zone D", 12.9172, 77.6228, 60, 52, "online", 30, "high", 53),
+        ("CAM-007", "Koramangala 5th Block", "Koramangala, Zone C", "Zone C", 12.9352, 77.6245, 56, 42, "online", 30, "moderate", 31),
+        ("CAM-008", "Whitefield Main Road", "Whitefield, Zone E", "Zone E", 12.9698, 77.7499, 78, 36, "online", 25, "low", 14),
+        ("CAM-009", "Bannerghatta Road", "Bannerghatta, Zone D", "Zone D", 12.8745, 77.5990, 48, 68, "offline", 0, "clear", 0),
+        ("CAM-010", "KR Circle", "KR Circle, Zone A", "Zone A", 12.9767, 77.5713, 44, 38, "online", 24, "moderate", 26),
+        ("CAM-011", "Indiranagar 100ft Road", "Indiranagar, Zone B", "Zone B", 12.9784, 77.6408, 62, 30, "online", 30, "high", 41),
+        ("CAM-012", "Marathahalli Bridge", "Marathahalli, Zone E", "Zone E", 12.9591, 77.6600, 74, 44, "warning", 22, "moderate", 19),
+    ]
+
     if not c.execute("SELECT COUNT(*) FROM cameras").fetchone()[0]:
-        cameras = [
-            ("CAM-001", "MG Road Junction", "MG Road, Zone A", "Zone A", 52, 38, 38, 28, "online", 30, "high", 47),
-            ("CAM-002", "Yeshwanthpur Junction", "Yeshwanthpur, Zone B", "Zone B", 48, 44, 52, 22, "online", 24, "moderate", 29),
-            ("CAM-003", "Hebbal Flyover", "Hebbal, Zone A", "Zone A", 55, 32, 28, 18, "online", 24, "high", 37),
-            ("CAM-004", "Airport Road", "Airport Rd, Zone C", "Zone C", 60, 50, 64, 12, "online", 25, "moderate", 22),
-            ("CAM-005", "Electronic City Toll", "Electronic City, Zone D", "Zone D", 44, 60, 72, 60, "warning", 18, "low", 11),
-            ("CAM-006", "Silk Board Junction", "Silk Board, Zone D", "Zone D", 42, 56, 60, 52, "online", 30, "high", 53),
-            ("CAM-007", "Koramangala 5th Block", "Koramangala, Zone C", "Zone C", 46, 48, 56, 42, "online", 30, "moderate", 31),
-            ("CAM-008", "Whitefield Main Road", "Whitefield, Zone E", "Zone E", 58, 42, 78, 36, "online", 25, "low", 14),
-            ("CAM-009", "Bannerghatta Road", "Bannerghatta, Zone D", "Zone D", 40, 52, 48, 68, "offline", 0, "clear", 0),
-            ("CAM-010", "KR Circle", "KR Circle, Zone A", "Zone A", 50, 40, 44, 38, "online", 24, "moderate", 26),
-            ("CAM-011", "Indiranagar 100ft Road", "Indiranagar, Zone B", "Zone B", 54, 46, 62, 30, "online", 30, "high", 41),
-            ("CAM-012", "Marathahalli Bridge", "Marathahalli, Zone E", "Zone E", 56, 54, 74, 44, "warning", 22, "moderate", 19),
-        ]
         now = datetime.utcnow().isoformat()
         for cam in cameras:
             c.execute("""INSERT INTO cameras (id,name,location,zone,lat,lng,map_x,map_y,status,fps,traffic,vehicles,created_at)
                          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (*cam, now))
+    else:
+        for cam in cameras:
+            c.execute("UPDATE cameras SET lat=?, lng=? WHERE id=? AND (lat > 30 OR lat IS NULL)", (cam[4], cam[5], cam[0]))
+        conn.commit()
 
     # Watchlist
     if not c.execute("SELECT COUNT(*) FROM watchlist").fetchone()[0]:
