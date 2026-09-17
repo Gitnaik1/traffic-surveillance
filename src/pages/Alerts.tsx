@@ -450,7 +450,7 @@ export default function Alerts() {
                         cursor: "pointer",
                       }}
                     >
-                      View →
+                      View Details
                     </button>
                     {!alert.acknowledged && (
                       <button
