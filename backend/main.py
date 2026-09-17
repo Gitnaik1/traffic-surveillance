@@ -38,8 +38,35 @@ def get_db():
     return conn
 
 def init_db():
+    """Initialise SQLite database tables with automatic schema validation and repair."""
     conn = get_db()
     c = conn.cursor()
+
+    # Detect and repair incompatible legacy table definitions
+    try:
+        c.execute("PRAGMA table_info(alerts)")
+        for col in c.fetchall():
+            if col[1] == 'id' and 'INT' in col[2].upper():
+                c.execute("DROP TABLE alerts")
+                break
+    except Exception:
+        pass
+
+    try:
+        c.execute("PRAGMA table_info(watchlist)")
+        w_cols = {col[1] for col in c.fetchall()}
+        if w_cols and 'description' not in w_cols:
+            c.execute("DROP TABLE watchlist")
+    except Exception:
+        pass
+
+    try:
+        c.execute("PRAGMA table_info(anpr_reads)")
+        a_cols = {col[1] for col in c.fetchall()}
+        if a_cols and 'plate' not in a_cols:
+            c.execute("DROP TABLE anpr_reads")
+    except Exception:
+        pass
 
     c.executescript("""
     CREATE TABLE IF NOT EXISTS cameras (
@@ -155,6 +182,47 @@ def init_db():
     );
     """)
     conn.commit()
+
+    # Ensure backward-compatible migrations for existing SQLite databases
+    alert_cols = {
+        "subject": "TEXT",
+        "camera": "TEXT",
+        "location": "TEXT",
+        "plate": "TEXT",
+        "message": "TEXT",
+        "acknowledged": "INTEGER DEFAULT 0",
+        "timestamp": "TEXT",
+        "created_at": "TEXT",
+    }
+    try:
+        c.execute("PRAGMA table_info(alerts)")
+        existing_cols = {r[1] for r in c.fetchall()}
+        for col_name, col_type in alert_cols.items():
+            if col_name not in existing_cols:
+                c.execute(f"ALTER TABLE alerts ADD COLUMN {col_name} {col_type}")
+        conn.commit()
+    except Exception:
+        pass
+
+    camera_cols = {
+        "lat": "REAL DEFAULT 12.9716",
+        "lng": "REAL DEFAULT 77.5946",
+        "map_x": "INTEGER DEFAULT 50",
+        "map_y": "INTEGER DEFAULT 50",
+        "stream_url": "TEXT",
+        "ai_model": "TEXT DEFAULT 'YOLOv8m'",
+        "enabled": "INTEGER DEFAULT 1",
+    }
+    try:
+        c.execute("PRAGMA table_info(cameras)")
+        existing_cam_cols = {r[1] for r in c.fetchall()}
+        for col_name, col_type in camera_cols.items():
+            if col_name not in existing_cam_cols:
+                c.execute(f"ALTER TABLE cameras ADD COLUMN {col_name} {col_type}")
+        conn.commit()
+    except Exception:
+        pass
+
     _seed_initial_data(c, conn)
     conn.close()
 
