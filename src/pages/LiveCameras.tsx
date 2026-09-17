@@ -6,7 +6,7 @@ type ViewMode = 'grid' | 'list';
 type StatusFilter = 'all' | 'online' | 'offline' | 'warning';
 type TrafficFilter = 'all' | 'clear' | 'low' | 'moderate' | 'high';
 
-// ΓöÇΓöÇ Simulated CV Annotations ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Simulated CV Annotations ──────────────────────────────────────────────
 const cameraAnnotations: Record<string, Array<{
   x: number; y: number; w: number; h: number;
   id: string; type: string; conf: number; plate?: string; color: 'blue' | 'green' | 'amber'
@@ -30,7 +30,7 @@ const cameraAnnotations: Record<string, Array<{
   ],
 };
 
-// ΓöÇΓöÇ CV overlay box component ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── CV overlay box component ─────────────────────────────────────────────
 function CVBox({ ann }: { ann: typeof cameraAnnotations[string][number] }) {
   const borderColor = ann.color === 'blue' ? 'rgba(59,130,246,0.85)' :
     ann.color === 'green' ? 'rgba(34,197,94,0.85)' : 'rgba(245,158,11,0.85)';
@@ -81,7 +81,7 @@ function CVBox({ ann }: { ann: typeof cameraAnnotations[string][number] }) {
   );
 }
 
-// ΓöÇΓöÇ Camera Card ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Camera Card ──────────────────────────────────────────────────────────
 function CameraCard({ cam, onSelect, showOverlays }: {
   cam: any;
   onSelect: () => void;
@@ -180,7 +180,7 @@ function CameraCard({ cam, onSelect, showOverlays }: {
 
         {cam.status === 'warning' && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 bg-[#1a1000] border border-[#f59e0b] rounded px-2 py-0.5">
-            <span className="text-[8px] font-mono text-[#fbbf24]">ΓÜá SIGNAL DEGRADED</span>
+            <span className="text-[8px] font-mono text-[#fbbf24]">⚠ SIGNAL DEGRADED</span>
           </div>
         )}
 
@@ -253,7 +253,7 @@ function CameraCard({ cam, onSelect, showOverlays }: {
         </div>
         <div className="flex items-center justify-between mt-2">
           <div className="flex items-center gap-3 text-[9px] text-[#4d607a] font-mono">
-            <span>{cam.fps > 0 ? `${cam.fps} FPS` : 'ΓÇö FPS'}</span>
+            <span>{cam.fps > 0 ? `${cam.fps} FPS` : '— FPS'}</span>
             <span>{cam.vehicles > 0 ? `${cam.vehicles} vehicles` : 'No vehicles'}</span>
           </div>
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -267,7 +267,7 @@ function CameraCard({ cam, onSelect, showOverlays }: {
   );
 }
 
-// ΓöÇΓöÇ Camera Row (list view) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Camera Row (list view) ────────────────────────────────────────────────
 function CameraRow({ cam, onSelect }: { cam: any; onSelect: () => void }) {
   const statusColor = cam.status === 'online' ? 'text-[#4ade80]' : cam.status === 'warning' ? 'text-[#fbbf24]' : 'text-[#f87171]';
   const statusDot = cam.status === 'online' ? 'bg-[#22c55e] animate-pulse-green' : cam.status === 'warning' ? 'bg-[#f59e0b]' : 'bg-[#ef4444]';
@@ -284,7 +284,7 @@ function CameraRow({ cam, onSelect }: { cam: any; onSelect: () => void }) {
       <td className="px-4 py-3 text-[11px] text-[#8899b4]">{cam.name}</td>
       <td className="px-4 py-3 text-[11px] text-[#4d607a]">{cam.location}</td>
       <td className="px-4 py-3"><span className={`text-[10px] font-mono uppercase ${statusColor}`}>{cam.status}</span></td>
-      <td className="px-4 py-3 text-[11px] font-mono text-[#4d607a]">{cam.fps > 0 ? `${cam.fps}` : 'ΓÇö'}</td>
+      <td className="px-4 py-3 text-[11px] font-mono text-[#4d607a]">{cam.fps > 0 ? `${cam.fps}` : '—'}</td>
       <td className="px-4 py-3"><span className={`text-[10px] font-mono capitalize ${trafficColor}`}>{cam.traffic}</span></td>
       <td className="px-4 py-3 text-[11px] font-mono text-[#8899b4]">{cam.vehicles}</td>
       <td className="px-4 py-3">
@@ -296,7 +296,7 @@ function CameraRow({ cam, onSelect }: { cam: any; onSelect: () => void }) {
   );
 }
 
-// ΓöÇΓöÇ Main Live Cameras ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Main Live Cameras ──────────────────────────────────────────────────────
 interface LiveCamerasProps {
   onSelectCamera?: (id: string) => void;
   selectedCameraId?: string | null;
@@ -354,7 +354,7 @@ export default function LiveCameras({
       <div className="p-5 space-y-4">
         {!backendOnline && (
           <div className="bg-[#2a1a1a] border border-[#ef4444] text-[#f87171] px-4 py-2 rounded-md text-sm mb-4">
-            Backend offline ΓÇö showing cached/mock data
+            Backend offline — showing cached/mock data
           </div>
         )}
 
@@ -376,8 +376,8 @@ export default function LiveCameras({
             <span className="text-[#f87171] font-semibold">{offlineCount}</span>
           </div>
           <div className="ml-auto flex items-center gap-1.5 text-[#4d607a]">
-            {autoRefresh && <span className="text-[#22c55e] animate-pulse-green">ΓùÅ AUTO-REFRESH</span>}
-            <span className="text-[#2a3a50]">┬╖ Updated just now</span>
+            {autoRefresh && <span className="text-[#22c55e] animate-pulse-green">● AUTO-REFRESH</span>}
+            <span className="text-[#2a3a50]">• Updated just now</span>
           </div>
         </div>
 

@@ -31,7 +31,7 @@ function WatchlistMatchBanner({ alert, onDismiss }: { alert: Alert; onDismiss: (
           flexShrink: 0,
         }}
       >
-        ΓÜá
+        ⚠
       </div>
       <div style={{ flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
@@ -44,15 +44,15 @@ function WatchlistMatchBanner({ alert, onDismiss }: { alert: Alert; onDismiss: (
         </div>
         <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
           <div>
-            <span style={{ fontSize: 10, color: "#94a3b8" }}>Plate ┬╖ </span>
+            <span style={{ fontSize: 10, color: "#94a3b8" }}>Plate • </span>
             <span style={{ fontSize: 14, fontWeight: 700, color: "#f1f5f9", fontFamily: "JetBrains Mono, monospace" }}>{alert.plate || "UNKNOWN"}</span>
           </div>
           <div>
-            <span style={{ fontSize: 10, color: "#94a3b8" }}>Detected at ┬╖ </span>
+            <span style={{ fontSize: 10, color: "#94a3b8" }}>Detected at • </span>
             <span style={{ fontSize: 13, fontWeight: 600, color: "#22d3ee", fontFamily: "JetBrains Mono, monospace" }}>{alert.camera}</span>
           </div>
           <div>
-            <span style={{ fontSize: 10, color: "#94a3b8" }}>Time ┬╖ </span>
+            <span style={{ fontSize: 10, color: "#94a3b8" }}>Time • </span>
             <span style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9", fontFamily: "JetBrains Mono, monospace" }}>{alert.timestamp}</span>
           </div>
         </div>
@@ -144,7 +144,7 @@ function AddVehicleModal({ onClose, onAdd }: {
               fontSize: 14,
             }}
           >
-            ├ù
+            ×
           </button>
         </div>
 
@@ -299,7 +299,7 @@ function WatchlistDetail({ entry, onClose, onToggle, onRemove }: { entry: Watchl
             onClick={onClose}
             style={{ background: "transparent", border: "1px solid #1e2d45", color: "#64748b", borderRadius: 6, width: 32, height: 32, cursor: "pointer", fontSize: 16 }}
           >
-            ├ù
+            ×
           </button>
         </div>
 
@@ -311,8 +311,8 @@ function WatchlistDetail({ entry, onClose, onToggle, onRemove }: { entry: Watchl
             ["Reason", entry.reason],
             ["Priority", entry.priority?.toUpperCase()],
             ["Created Date", entry.created_at],
-            ["Last Seen", entry.last_seen || "ΓÇö"],
-            ["Last Camera", entry.last_camera || "ΓÇö"],
+            ["Last Seen", entry.last_seen || "—"],
+            ["Last Camera", entry.last_camera || "—"],
           ].map(([key, val]) => (
             <div key={key} style={{ padding: "10px 0", borderBottom: "1px solid #1a2438", display: "flex", flexDirection: "column", gap: 3 }}>
               <span style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "JetBrains Mono, monospace" }}>{key}</span>
@@ -336,7 +336,7 @@ function WatchlistDetail({ entry, onClose, onToggle, onRemove }: { entry: Watchl
   );
 }
 
-// ΓöÇΓöÇ Main Page ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Watchlist() {
   const { alerts, watchlist, watchlistLoading, addPlateToWatchlist, removePlateFromWatchlist, toggleWatchlistActive } = useApp();
@@ -401,7 +401,7 @@ export default function Watchlist() {
         </div>
 
         <span style={{ fontSize: 12, color: "#64748b", fontFamily: "JetBrains Mono, monospace" }}>
-          {filtered.length} vehicles ┬╖ {watchlist.filter((e) => e.active).length} active
+          {filtered.length} vehicles • {watchlist.filter((e) => e.active).length} active
         </span>
 
         <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
@@ -502,7 +502,7 @@ export default function Watchlist() {
                   {entry.created_at.slice(0, 10)}
                 </td>
                 <td style={{ padding: "11px 14px", fontSize: 11, color: "#64748b", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap" }}>
-                  {entry.last_seen || "ΓÇö"}
+                  {entry.last_seen || "—"}
                 </td>
                 <td style={{ padding: "11px 14px" }}>
                   <Badge severity={entry.active ? "active" : "inactive"} />

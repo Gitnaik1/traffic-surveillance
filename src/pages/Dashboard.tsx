@@ -9,7 +9,7 @@ import InteractiveMap, { MapCamera } from '../components/InteractiveMap';
 
 type ChartFilter = '15m' | '1h' | 'today' | 'custom';
 
-// ΓöÇΓöÇ KPI Card ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── KPI Card ────────────────────────────────────────────────────────────────
 function KPICard({ accent, icon, title, primary, sub, trend, badge }: {
   accent: string; icon: React.ReactNode; title: string;
   primary: string; sub: string; trend?: number; badge?: { label: string; color: string };
@@ -124,7 +124,7 @@ function CityMap({ cameras, onSelectCamera, selectedCam }: { cameras: Camera[]; 
   );
 }
 
-// ΓöÇΓöÇ Alerts Panel ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Alerts Panel ─────────────────────────────────────────────────────────
 function AlertsPanel({ alerts }: { alerts: Alert[] }) {
   const sevClass = (s: string) =>
     s === 'critical' ? 'severity-critical' :
@@ -143,7 +143,7 @@ function AlertsPanel({ alerts }: { alerts: Alert[] }) {
           <span className="text-sm font-semibold text-[#e2eaf3]" style={{ fontFamily: 'Outfit, sans-serif' }}>Live Alerts</span>
           <span className="text-[9px] bg-[#ef4444] text-white rounded-full px-1.5 py-0.5 font-bold">{alerts.length}</span>
         </div>
-        <button className="text-[10px] text-[#3b82f6] hover:text-[#60a5fa]">View All ΓåÆ</button>
+        <button className="text-[10px] text-[#3b82f6] hover:text-[#60a5fa]">View All →</button>
       </div>
       <div className="flex-1 overflow-y-auto scrollbar-hidden divide-y divide-[#0f1a2e]">
         {alerts.length === 0 ? (
@@ -159,7 +159,7 @@ function AlertsPanel({ alerts }: { alerts: Alert[] }) {
               </div>
               <div className="text-[11px] text-[#c8d6e8] font-semibold font-mono">{alert.subject}</div>
               <div className="flex items-center justify-between mt-1.5">
-                <span className="text-[9px] text-[#4d607a]">{alert.camera} ┬╖ {alert.location || 'Unknown'}</span>
+                <span className="text-[9px] text-[#4d607a]">{alert.camera} • {alert.location || 'Unknown'}</span>
                 <button className="text-[9px] px-2 py-0.5 border border-[#243348] rounded text-[#8899b4] hover:border-[#3b82f6] hover:text-[#60a5fa] transition-colors">
                   View
                 </button>
@@ -172,7 +172,7 @@ function AlertsPanel({ alerts }: { alerts: Alert[] }) {
   );
 }
 
-// ΓöÇΓöÇ Charts ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Charts ────────────────────────────────────────────────────────────────
 function ChartFilterBar({ active, onChange }: { active: ChartFilter; onChange: (f: ChartFilter) => void }) {
   const opts: { label: string; value: ChartFilter }[] = [
     { label: '15m', value: '15m' }, { label: '1h', value: '1h' },
@@ -209,7 +209,7 @@ const CustomTooltipDark = ({ active, payload, label }: any) => {
   );
 };
 
-// ΓöÇΓöÇ System Status ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── System Status ──────────────────────────────────────────────────────────
 function SystemStatusPanel({ systemHealth }: { systemHealth: SystemHealth | null }) {
   const statusDot = (s: string) =>
     s === 'healthy' || s === 'connected' ? 'bg-[#22c55e] animate-pulse-green' : 'bg-[#f59e0b] animate-pulse-amber';
@@ -230,7 +230,7 @@ function SystemStatusPanel({ systemHealth }: { systemHealth: SystemHealth | null
             <div>
               <div className="text-[10px] text-[#4d607a]">{s.name}</div>
               <div className={`text-[10px] font-semibold font-mono ${statusColor(s.status)}`}>
-                {statusText(s.status)} <span className="text-[#2a3a50]">┬╖ {s.latency_ms}ms</span>
+                {statusText(s.status)} <span className="text-[#2a3a50]">• {s.latency_ms}ms</span>
               </div>
             </div>
           </div>
@@ -240,7 +240,7 @@ function SystemStatusPanel({ systemHealth }: { systemHealth: SystemHealth | null
   );
 }
 
-// ΓöÇΓöÇ Skeleton Loader ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Skeleton Loader ────────────────────────────────────────────────────────
 function SkeletonLoader() {
   return (
     <div className="flex-1 overflow-y-auto scrollbar-hidden bg-[#080d18] animate-pulse">
@@ -259,7 +259,7 @@ function SkeletonLoader() {
   );
 }
 
-// ΓöÇΓöÇ Main Dashboard ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Main Dashboard ────────────────────────────────────────────────────────
 export default function Dashboard({ onCameraSelect }: { onCameraSelect: (id: string) => void }) {
   const { cameras, backendOnline } = useApp();
   const [chartFilter, setChartFilter] = useState<ChartFilter>('15m');
@@ -522,7 +522,7 @@ export default function Dashboard({ onCameraSelect }: { onCameraSelect: (id: str
                     <span className="w-2 h-2 rounded-full" style={{ background: row.color }} />
                     <span className="text-[10px] text-[#8899b4]">{row.label}</span>
                   </div>
-                  <div className="text-[10px] font-mono text-[#4d607a]">{row.count} cameras ┬╖ {row.pct}%</div>
+                  <div className="text-[10px] font-mono text-[#4d607a]">{row.count} cameras • {row.pct}%</div>
                 </div>
                 <div className="progress-bar" style={{ height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
                   <div className="progress-bar-fill" style={{ height: '100%', width: `${row.pct}%`, background: row.color, transition: 'width 1s ease-in-out' }} />

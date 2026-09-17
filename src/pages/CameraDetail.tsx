@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { getVehicles, getAnprReads } from '../services/api';
 import type { Vehicle, AnprRead } from '../services/api';
 
-// ΓöÇΓöÇ Event timeline from WebSocket metadata ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Event timeline from WebSocket metadata ────────────────────────────────────
 interface EventEntry {
   time: string;
   event: string;
@@ -12,7 +12,7 @@ interface EventEntry {
   id: string;
 }
 
-// ΓöÇΓöÇ Bounding box overlay from WebSocket detections ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Bounding box overlay from WebSocket detections ────────────────────────────
 interface BBoxAnnotation {
   x: number; y: number; w: number; h: number;
   id: string; type: string; conf: number; plate?: string;
@@ -37,7 +37,7 @@ function CVBox({ ann }: { ann: BBoxAnnotation }) {
         <div key={i} className={`absolute w-3 h-3 ${pos} ${bdr}`} style={{ borderColor: ann.color }} />
       ))}
       <div className="absolute -top-6 left-0 flex items-center gap-1">
-        {ann.flagged && <span className="text-[8px] font-mono px-1 py-0.5 rounded bg-[#ef4444] text-white font-bold">ΓÜá FLAGGED</span>}
+        {ann.flagged && <span className="text-[8px] font-mono px-1 py-0.5 rounded bg-[#ef4444] text-white font-bold">⚠ FLAGGED</span>}
         <span className="text-[8px] font-mono px-1 py-0.5 rounded font-bold" style={{ background: ann.color, color: '#000' }}>{ann.id}</span>
         <span className="text-[8px] font-mono text-[#8899b4]">{ann.type}</span>
         <span className="text-[8px] font-mono text-[#4d607a]">{ann.conf}%</span>
@@ -52,7 +52,7 @@ function CVBox({ ann }: { ann: BBoxAnnotation }) {
   );
 }
 
-// ΓöÇΓöÇ Main CameraDetail ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Main CameraDetail ─────────────────────────────────────────────────────────
 export default function CameraDetail({ cameraId, onBack }: { cameraId: string; onBack: () => void }) {
   const [activeTab, setActiveTab] = useState<'vehicles' | 'anpr' | 'timeline'>('vehicles');
   const [showOverlays, setShowOverlays] = useState(true);
@@ -137,7 +137,7 @@ export default function CameraDetail({ cameraId, onBack }: { cameraId: string; o
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${statusDot}`} />
                   <span className="text-[11px] font-mono font-semibold text-[#e2eaf3]">{cam?.id || cameraId}</span>
-                  <span className="text-[10px] text-[#4d607a]">┬╖</span>
+                  <span className="text-[10px] text-[#4d607a]">•</span>
                   <span className="text-[10px] text-[#4d607a]">{cam?.name || 'Camera'}</span>
                   {wsId && (
                     <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${connected ? 'text-[#4ade80] bg-[#0a1a0e]' : 'text-[#f87171] bg-[#1a0808]'}`}>
@@ -214,7 +214,7 @@ export default function CameraDetail({ cameraId, onBack }: { cameraId: string; o
 
                 {/* Timestamp bottom */}
                 <div className="absolute bottom-3 left-3 text-[9px] font-mono text-[#4d607a] bg-[#070c17] bg-opacity-80 px-1.5 py-0.5 rounded z-20">
-                  {timestamp || new Date().toLocaleTimeString('en-IN', { hour12: false })} IST ┬╖ {cam?.fps ?? 0} FPS
+                  {timestamp || new Date().toLocaleTimeString('en-IN', { hour12: false })} IST • {cam?.fps ?? 0} FPS
                 </div>
 
                 {/* Alert indicator */}
@@ -289,7 +289,7 @@ export default function CameraDetail({ cameraId, onBack }: { cameraId: string; o
                             </td>
                             <td className="px-4 py-2.5 text-[10px] text-[#8899b4]">{v.type}</td>
                             <td className="px-4 py-2.5">
-                              <span className={`text-[10px] font-mono ${v.plate === 'ΓÇö' ? 'text-[#4d607a]' : v.flagged ? 'text-[#f87171]' : 'text-[#60a5fa]'}`}>{v.plate}</span>
+                              <span className={`text-[10px] font-mono ${v.plate === '—' ? 'text-[#4d607a]' : v.flagged ? 'text-[#f87171]' : 'text-[#60a5fa]'}`}>{v.plate}</span>
                             </td>
                             <td className="px-4 py-2.5">
                               <div className="flex items-center gap-1.5">
@@ -335,7 +335,7 @@ export default function CameraDetail({ cameraId, onBack }: { cameraId: string; o
                           <tr key={i} className={`border-b border-[#0f1a2e] ${r.flagged ? 'bg-[#1a0808]' : ''}`}>
                             <td className="px-4 py-2.5">
                               <div className="flex items-center gap-2">
-                                {!!r.flagged && <span className="text-[8px] font-mono px-1 py-0.5 rounded bg-[#ef4444] text-white font-bold">ΓÜá</span>}
+                                {!!r.flagged && <span className="text-[8px] font-mono px-1 py-0.5 rounded bg-[#ef4444] text-white font-bold">⚠</span>}
                                 <span className={`text-[11px] font-mono font-semibold ${r.flagged ? 'text-[#f87171]' : 'text-[#60a5fa]'}`}>{r.plate}</span>
                               </div>
                             </td>
@@ -435,10 +435,10 @@ export default function CameraDetail({ cameraId, onBack }: { cameraId: string; o
               </div>
               <div className="grid grid-cols-2 gap-px bg-[#0f1a2e]">
                 {[
-                  { label: 'FPS', value: cam?.fps ? cam.fps.toString() : 'ΓÇö', color: '#60a5fa' },
+                  { label: 'FPS', value: cam?.fps ? cam.fps.toString() : '—', color: '#60a5fa' },
                   { label: 'Vehicles', value: cam?.vehicles?.toString() ?? '0', color: '#e2eaf3' },
                   { label: 'ANPR Reads', value: anprReads.length.toString(), color: '#60a5fa' },
-                  { label: 'Traffic', value: cam?.traffic ?? 'ΓÇö', color: cam?.traffic === 'high' ? '#f87171' : cam?.traffic === 'moderate' ? '#fbbf24' : '#4ade80' },
+                  { label: 'Traffic', value: cam?.traffic ?? '—', color: cam?.traffic === 'high' ? '#f87171' : cam?.traffic === 'moderate' ? '#fbbf24' : '#4ade80' },
                 ].map(stat => (
                   <div key={stat.label} className="bg-[#0c1220] px-4 py-3">
                     <div className="text-[9px] text-[#4d607a] uppercase tracking-wider mb-1">{stat.label}</div>
@@ -457,7 +457,7 @@ export default function CameraDetail({ cameraId, onBack }: { cameraId: string; o
                 {[
                   { label: 'Stream', value: wsId ? (connected ? 'WS/JPEG Live' : 'ReconnectingΓÇª') : 'Preview', color: wsId && connected ? '#4ade80' : '#f87171' },
                   { label: 'WS Channel', value: wsId || 'N/A', color: '#8899b4' },
-                  { label: 'Latency', value: connected ? '~40ms' : 'ΓÇö', color: '#8899b4' },
+                  { label: 'Latency', value: connected ? '~40ms' : '—', color: '#8899b4' },
                   { label: 'AI Model', value: cam?.ai_model || 'YOLOv8m', color: '#a78bfa' },
                 ].map(row => (
                   <div key={row.label} className="flex items-center justify-between">

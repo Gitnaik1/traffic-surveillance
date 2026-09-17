@@ -159,7 +159,7 @@ export default function CameraManagement() {
                     <Toggle checked={cam.enabled === 1} onChange={() => handleToggleEnable(cam.id, cam.enabled)} />
                   </div>
                 </Td>
-                <Td mono>{cam.fps > 0 ? `${Math.round(cam.fps)} FPS` : "ΓÇö"}</Td>
+                <Td mono>{cam.fps > 0 ? `${Math.round(cam.fps)} FPS` : "—"}</Td>
                 <Td mono>{(cam.vehicles || 0).toLocaleString()}</Td>
                 <Td><Badge color={cam.traffic === "high" ? "red" : cam.traffic === "moderate" ? "amber" : "green"}><span className="capitalize">{cam.traffic || "clear"}</span></Badge></Td>
                 <Td>
@@ -234,7 +234,7 @@ export default function CameraManagement() {
 
       {/* Camera Detail Modal */}
       {showDetail && (
-        <Modal title={`${showDetail.id} ΓÇö ${showDetail.name}`} onClose={() => setShowDetail(null)} wide>
+        <Modal title={`${showDetail.id} — ${showDetail.name}`} onClose={() => setShowDetail(null)} wide>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Preview */}
             <div>

@@ -3,21 +3,21 @@ import { Card, Badge, TableWrapper, Th, Td, Btn, SectionHeader, Select, KpiCard 
 import { getReportSummary, ReportSummary } from "../services/api";
 
 const REPORT_TYPES = [
-  { id: "daily-traffic", label: "Daily Traffic Report", icon: "Γûª", desc: "Hourly vehicle counts, speed, lane distribution across all cameras." },
-  { id: "vehicle-movement", label: "Vehicle Movement Report", icon: "Γùê", desc: "Origin-destination patterns, route frequency, trajectory clusters." },
-  { id: "anpr", label: "ANPR Report", icon: "Γ¼ó", desc: "Plate reads, recognition confidence, manual review queue." },
-  { id: "congestion", label: "Congestion Report", icon: "ΓÜæ", desc: "Bottleneck detection, LOS metrics, temporal congestion heatmaps." },
-  { id: "camera-performance", label: "Camera Performance Report", icon: "Γùë", desc: "Uptime, FPS stability, detection accuracy per camera." },
-  { id: "alert", label: "Alert Report", icon: "Γ¼í", desc: "Alert summary by type, camera, severity and resolution time." },
+  { id: "daily-traffic", label: "Daily Traffic Report", icon: "▪", desc: "Hourly vehicle counts, speed, lane distribution across all cameras." },
+  { id: "vehicle-movement", label: "Vehicle Movement Report", icon: "◆", desc: "Origin-destination patterns, route frequency, trajectory clusters." },
+  { id: "anpr", label: "ANPR Report", icon: "⬢", desc: "Plate reads, recognition confidence, manual review queue." },
+  { id: "congestion", label: "Congestion Report", icon: "⚡", desc: "Bottleneck detection, LOS metrics, temporal congestion heatmaps." },
+  { id: "camera-performance", label: "Camera Performance Report", icon: "◉", desc: "Uptime, FPS stability, detection accuracy per camera." },
+  { id: "alert", label: "Alert Report", icon: "⬟", desc: "Alert summary by type, camera, severity and resolution time." },
 ];
 
 const HISTORY = [
   { id: "RPT-2024-1048", type: "Daily Traffic Report", range: "Sep 15, 2026", generated: "10:30:00", by: "Operator", status: "Completed" },
   { id: "RPT-2024-1047", type: "ANPR Report", range: "Sep 14, 2026", generated: "09:15:22", by: "Admin", status: "Completed" },
-  { id: "RPT-2024-1046", type: "Congestion Report", range: "Sep 13ΓÇô14, 2026", generated: "08:45:10", by: "Operator", status: "Generating" },
-  { id: "RPT-2024-1045", type: "Camera Performance Report", range: "Sep 1ΓÇô7, 2026", generated: "Yesterday", by: "Admin", status: "Completed" },
+  { id: "RPT-2024-1046", type: "Congestion Report", range: "Sep 13–14, 2026", generated: "08:45:10", by: "Operator", status: "Generating" },
+  { id: "RPT-2024-1045", type: "Camera Performance Report", range: "Sep 1–7, 2026", generated: "Yesterday", by: "Admin", status: "Completed" },
   { id: "RPT-2024-1044", type: "Vehicle Movement Report", range: "Sep 10, 2026", generated: "Yesterday", by: "Operator", status: "Failed" },
-  { id: "RPT-2024-1043", type: "Alert Report", range: "Sep 1ΓÇô14, 2026", generated: "2 days ago", by: "Admin", status: "Completed" },
+  { id: "RPT-2024-1043", type: "Alert Report", range: "Sep 1–14, 2026", generated: "2 days ago", by: "Admin", status: "Completed" },
 ];
 
 const statusColor = (s: string): "green" | "amber" | "red" | "blue" | "gray" =>
@@ -136,10 +136,10 @@ export default function Reports() {
               onChange={setCamera}
               options={[
                 { value: "all", label: "All Cameras" },
-                { value: "CAM-001", label: "CAM-001 ΓÇö MG Road" },
-                { value: "CAM-002", label: "CAM-002 ΓÇö Brigade Road" },
-                { value: "CAM-003", label: "CAM-003 ΓÇö Silk Board" },
-                { value: "CAM-004", label: "CAM-004 ΓÇö Hebbal" },
+                { value: "CAM-001", label: "CAM-001 — MG Road" },
+                { value: "CAM-002", label: "CAM-002 — Brigade Road" },
+                { value: "CAM-003", label: "CAM-003 — Silk Board" },
+                { value: "CAM-004", label: "CAM-004 — Hebbal" },
               ]}
             />
           </div>
