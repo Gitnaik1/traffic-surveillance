@@ -245,9 +245,10 @@ function DashboardLiveFeed({
 function AlertsPanel({ alerts }: { alerts: Alert[] }) {
   const sevClass = (s: string) =>
     s === 'critical' ? 'severity-critical' :
-    s === 'warning' ? 'severity-warning' : 'severity-info';
+    s === 'warning' ? 'severity-warning' :
+    s === 'high' ? 'severity-warning' : 'severity-info';
   const sevColor = (s: string) =>
-    s === 'critical' ? '#f87171' : s === 'warning' ? '#fbbf24' : '#60a5fa';
+    s === 'critical' ? '#f87171' : (s === 'warning' || s === 'high') ? '#fbbf24' : '#60a5fa';
 
   const formatTime = (ts: string) => {
     return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
