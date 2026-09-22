@@ -77,6 +77,12 @@ class SurveillancePipeline:
         self.frame_num = 0
         self.last_detections = []
 
+    def reset_tracking(self):
+        """Reset active tracker and frame state when video loops."""
+        if hasattr(self.tracker, 'reset'):
+            self.tracker.reset()
+        self.frame_num = 0
+
     # ── Fix 2: load from Person-1 detection log ─────────────────────────────
     @staticmethod
     def load_from_detection_log(log_path: str) -> list[dict]:
@@ -112,7 +118,7 @@ class SurveillancePipeline:
         return detections
 
     # ── Core frame processing ────────────────────────────────────────────────
-    def process_frame(self, frame):
+    def process_frame(self, frame, draw_overlays: bool = True):
         """
         Process single video frame.
         Returns: (processed_frame, frame_metadata)
@@ -129,23 +135,34 @@ class SurveillancePipeline:
 
         alerts           = []
         frame_detections = []
+        fh, fw = frame.shape[:2]
 
-        # Step 3: OCR + Re-ID
+        # Step 3: OCR + Re-ID + sleek tactical overlay drawing
         for raw_id, bbox in tracked_bboxes.items():
             veh_id = normalise_vehicle_id(raw_id)
             x, y, w, h = bbox
-            vehicle_crop = frame[max(0, y):min(frame.shape[0], y+h),
-                                 max(0, x):min(frame.shape[1], x+w)]
+            # Clamp coordinates to frame dimensions
+            x = max(0, min(x, fw - 1))
+            y = max(0, min(y, fh - 1))
+            w = max(1, min(w, fw - x))
+            h = max(1, min(h, fh - y))
+
+            vehicle_crop = frame[y:y+h, x:x+w]
+
+            meta_info = self.tracker.get_metadata(raw_id) if hasattr(self.tracker, 'get_metadata') else {"type": "Car", "conf": 0.90}
+            veh_type = meta_info.get("type", "Car")
+            det_conf = meta_info.get("conf", 0.90)
 
             if veh_id not in self.vehicle_records:
-                plate_crop, _ = self.detector.crop_plate_region(frame, bbox)
-                plate_text, conf, is_valid = self.ocr_engine.read_plate(plate_crop, vehicle_id=veh_id)
+                plate_crop, _ = self.detector.crop_plate_region(frame, [x, y, w, h])
+                plate_text, ocr_conf, is_valid = self.ocr_engine.read_plate(plate_crop, vehicle_id=veh_id)
                 is_flagged = plate_text in self.watchlist
 
                 self.vehicle_records[veh_id] = {
                     "plate":      plate_text,
-                    "label":      "vehicle",
-                    "conf":       conf,
+                    "type":       veh_type,
+                    "label":      veh_type.lower(),
+                    "conf":       det_conf,
                     "is_flagged": is_flagged,
                 }
 
@@ -171,36 +188,69 @@ class SurveillancePipeline:
             rec           = self.vehicle_records[veh_id]
             plate_display = rec["plate"]
             is_flagged    = rec["is_flagged"]
+            veh_type      = rec.get("type", veh_type)
+            det_conf      = rec.get("conf", det_conf)
 
-            # GREEN (0, 230, 0) for normal vehicles, RED (0, 0, 255) ONLY for flagged watchlist vehicles
-            color = (0, 0, 255) if is_flagged else (0, 230, 0)
-            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+            if draw_overlays:
+                # Sleek tactical color scheme:
+                # Normal vehicles: high-tech emerald green (0, 220, 100)
+                # Flagged watchlist vehicles: vivid crimson red (0, 0, 255)
+                color = (0, 0, 255) if is_flagged else (0, 220, 100)
 
-            label_str = f"{veh_id} | {plate_display}"
-            if is_flagged:
-                label_str += " [FLAGGED!]"
+                # 1. Thin precise bounding box
+                cv2.rectangle(frame, (x, y), (x + w, y + h), color, 1)
 
-            # Label badge
-            badge_w = len(label_str) * 9 + 10
-            badge_h = 20
-            badge_y = max(0, y - badge_h)
-            cv2.rectangle(frame, (x, badge_y), (x + badge_w, badge_y + badge_h), color, -1)
-            cv2.putText(frame, label_str, (x + 4, badge_y + 14),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 0, 0) if not is_flagged else (255, 255, 255), 1, cv2.LINE_AA)
+                # 2. Tactical corner reticles (thickened accents on 4 corners)
+                c_len = max(6, min(14, int(w * 0.22), int(h * 0.22)))
+                # Top-left
+                cv2.line(frame, (x, y), (x + c_len, y), color, 2)
+                cv2.line(frame, (x, y), (x, y + c_len), color, 2)
+                # Top-right
+                cv2.line(frame, (x + w, y), (x + w - c_len, y), color, 2)
+                cv2.line(frame, (x + w, y), (x + w, y + c_len), color, 2)
+                # Bottom-left
+                cv2.line(frame, (x, y + h), (x + c_len, y + h), color, 2)
+                cv2.line(frame, (x, y + h), (x, y + h - c_len), color, 2)
+                # Bottom-right
+                cv2.line(frame, (x + w, y + h), (x + w - c_len, y + h), color, 2)
+                cv2.line(frame, (x + w, y + h), (x + w, y + h - c_len), color, 2)
+
+                # 3. Compact dark slate tactical label badge
+                if is_flagged:
+                    badge_text = f" ! {veh_id} | {plate_display} [FLAGGED]"
+                else:
+                    badge_text = f"{veh_id} | {plate_display}"
+
+                (tw, th), baseline = cv2.getTextSize(badge_text, cv2.FONT_HERSHEY_SIMPLEX, 0.38, 1)
+                bw = tw + 10
+                bh = th + 7
+                bx = max(0, min(x, fw - bw - 2))
+                by = max(0, y - bh - 3) if y >= bh + 3 else min(fh - bh, y + h + 3)
+
+                # Dark slate background box (solid high-contrast dark slate 16, 22, 34)
+                bg_color = (20, 20, 140) if is_flagged else (16, 22, 34)
+                cv2.rectangle(frame, (bx, by), (bx + bw, by + bh), bg_color, -1)
+                cv2.rectangle(frame, (bx, by), (bx + bw, by + bh), color, 1)
+                # 3px colored accent bar on left edge
+                cv2.rectangle(frame, (bx, by), (bx + 3, by + bh), color, -1)
+
+                # Crisp white text with anti-aliasing
+                cv2.putText(frame, badge_text, (bx + 6, by + bh - 3),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1, cv2.LINE_AA)
 
             frame_detections.append({
+                "id":         veh_id,
                 "vehicle_id": veh_id,
-                "bbox":       list(bbox),
+                "bbox":       [x, y, w, h],
+                "plate":      plate_display,
                 "plate_text": plate_display,
                 "is_flagged": is_flagged,
+                "flagged":    is_flagged,
+                "confidence": round(float(det_conf), 2),
+                "type":       veh_type,
             })
 
         total_count = len(tracked_bboxes)
-        cv2.rectangle(frame, (0, 0), (frame.shape[1], 35), (20, 20, 20), -1)
-        header_str = (f"Camera: {self.camera_id} | "
-                      f"Vehicles: {total_count} | Alerts: {len(alerts)}")
-        cv2.putText(frame, header_str, (15, 22),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
         metadata = {
             "camera_id":     self.camera_id,
@@ -211,3 +261,4 @@ class SurveillancePipeline:
         }
 
         return frame, metadata
+

@@ -80,6 +80,12 @@ class ByteTrackWrapper:
         return result
 
 
+    def reset(self):
+        self.tracker = sv.ByteTrack()
+        self._id_map.clear()
+        self._next_idx = 1
+
+
 # ── Centroid fallback (original Person-2 tracker, kept intact) ───────────────
 
 try:
@@ -104,19 +110,36 @@ def _bbox_iou(box1, box2):
 class _CentroidTracker:
     """Robust centroid + IoU tracker with instantaneous cleanup of departed vehicles."""
 
-    def __init__(self, max_disappeared=10, max_distance=180):
+    def __init__(self, max_disappeared=5, max_distance=75):
         self.next_object_id = 1
         self.objects = {}
         self.bboxes = {}
         self.disappeared = {}
+        self.metadata = {}
         self.max_disappeared = max_disappeared
         self.max_distance = max_distance
 
-    def register(self, centroid, bbox):
+    def reset(self):
+        """Reset all active tracking states (useful upon video loop)."""
+        self.objects.clear()
+        self.bboxes.clear()
+        self.disappeared.clear()
+        self.metadata.clear()
+        self.next_object_id = 1
+
+    def get_metadata(self, object_id):
+        return self.metadata.get(object_id, {"type": "Car", "conf": 0.90})
+
+    def register(self, centroid, bbox, det=None):
         object_id = f"VEH_{self.next_object_id:03d}"
         self.objects[object_id] = centroid
         self.bboxes[object_id] = list(bbox)
         self.disappeared[object_id] = 0
+        raw_type = (det.get("label") or "Car") if det else "Car"
+        self.metadata[object_id] = {
+            "type": raw_type.capitalize(),
+            "conf": float(det.get("conf", 0.90)) if det else 0.90
+        }
         self.next_object_id += 1
         return object_id
 
@@ -124,6 +147,7 @@ class _CentroidTracker:
         self.objects.pop(object_id, None)
         self.bboxes.pop(object_id, None)
         self.disappeared.pop(object_id, None)
+        self.metadata.pop(object_id, None)
 
     def update(self, detections):
         if not detections:
@@ -143,7 +167,7 @@ class _CentroidTracker:
 
         if not self.objects:
             for i in range(len(input_centroids)):
-                self.register(input_centroids[i], input_bboxes[i])
+                self.register(input_centroids[i], input_bboxes[i], detections[i])
         else:
             object_ids = list(self.objects)
             object_centroids = list(self.objects.values())
@@ -160,9 +184,17 @@ class _CentroidTracker:
                 curr_bbox = input_bboxes[c]
                 iou = _bbox_iou(prev_bbox, curr_bbox)
 
-                # Match if either within distance OR bounding boxes overlap
-                if D[r, c] > self.max_distance and iou < 0.10:
-                    continue
+                prev_area = max(1, prev_bbox[2] * prev_bbox[3])
+                curr_area = max(1, curr_bbox[2] * curr_bbox[3])
+                area_ratio = curr_area / prev_area
+
+                # Strict gating: match if overlapping OR within tight distance with similar bbox area
+                if iou >= 0.15:
+                    pass  # Strong overlap
+                elif D[r, c] <= self.max_distance and (0.35 <= area_ratio <= 2.8):
+                    pass  # Smooth motion across frames
+                else:
+                    continue  # Distinct vehicle, do not latch onto old track!
 
                 # EMA smooth the bounding box to eliminate jitter
                 smoothed = [
@@ -177,6 +209,15 @@ class _CentroidTracker:
                 )
                 self.bboxes[obj_id] = smoothed
                 self.disappeared[obj_id] = 0
+
+                # Refresh metadata with latest detection
+                det = detections[c]
+                raw_type = det.get("label") or "Car"
+                self.metadata[obj_id] = {
+                    "type": raw_type.capitalize(),
+                    "conf": float(det.get("conf", 0.90))
+                }
+
                 used_rows.add(r)
                 used_cols.add(c)
 
@@ -187,7 +228,7 @@ class _CentroidTracker:
                     self.deregister(obj_id)
 
             for c in set(range(D.shape[1])).difference(used_cols):
-                self.register(input_centroids[c], input_bboxes[c])
+                self.register(input_centroids[c], input_bboxes[c], detections[c])
 
         # Return ONLY objects actively seen and confirmed in the current frame!
         return {
@@ -207,3 +248,4 @@ def VehicleTracker(*args, **kwargs):
     if _BYTETRACK_AVAILABLE:
         return ByteTrackWrapper()
     return _CentroidTracker(*args, **kwargs)
+

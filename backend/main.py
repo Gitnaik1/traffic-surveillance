@@ -1091,6 +1091,8 @@ class CameraStreamWorker:
             if not ret:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 ret, frame = cap.read()
+                if self.pipeline and hasattr(self.pipeline, 'reset_tracking'):
+                    self.pipeline.reset_tracking()
 
         if not ret or frame is None:
             frame = generate_synthetic_frame(self.camera_id, frame_count)
@@ -1107,7 +1109,7 @@ class CameraStreamWorker:
             try:
                 frame, metadata = self.pipeline.process_frame(frame)
                 self.last_metadata = metadata
-            except Exception:
+            except Exception as e:
                 pass
 
         # Compress to JPEG with quality 65 (compact ~20-25KB payload for instant mobile/network loading)
@@ -1235,6 +1237,7 @@ class CameraStreamHub:
                 if not pipeline and ML_AVAILABLE:
                     try:
                         pipeline = SurveillancePipeline(camera_id=camera_id, reid_engine=shared_reid_engine)
+                        pipelines[camera_id] = pipeline
                     except Exception:
                         pipeline = None
                 self.workers[camera_id] = CameraStreamWorker(camera_id, video_path, pipeline)
