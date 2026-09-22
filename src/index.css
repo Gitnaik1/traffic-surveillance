@@ -91,3 +91,17 @@ body {
   background: #1a2440 !important;
   color: #e2eaf3 !important;
 }
+
+/* ── Spinner + Drawer animations ────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.drawer-enter {
+  animation: slideInFromRight 0.22s ease-out;
+}
+
+@keyframes slideInFromRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}

@@ -30,11 +30,32 @@ from fastapi.responses import HTMLResponse
 # SQLite Database Setup
 # ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "urbantrax.db")
+import threading
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
+DB_PATH = os.path.join(os.path.dirname(__file__), "urbantrax.db")
+_db_local = threading.local()
+
+def _make_conn() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH, timeout=30, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA busy_timeout=30000")  # 30s busy wait
+    return conn
+
+def get_db() -> sqlite3.Connection:
+    """Return a thread-local SQLite connection with WAL enabled."""
+    conn = getattr(_db_local, "conn", None)
+    if conn is None:
+        conn = _make_conn()
+        _db_local.conn = conn
+    else:
+        # Re-open if connection was previously closed
+        try:
+            conn.execute("SELECT 1")
+        except Exception:
+            conn = _make_conn()
+            _db_local.conn = conn
     return conn
 
 def init_db():
@@ -1159,12 +1180,17 @@ class CameraStreamWorker:
                     conn.executemany("""INSERT OR IGNORE INTO alerts (id,type,severity,subject,camera,plate,message,acknowledged,timestamp,created_at)
                                         VALUES (?,?,?,?,?,?,?,0,?,?)""", new_alerts)
                 if new_anpr:
-                    conn.executemany("""INSERT OR IGNORE INTO anpr_reads (id,plate_number,camera_id,confidence,vehicle_type,flagged,status,created_at)
-                                        VALUES (?,?,?,?,?,0,'Verified',?)""", new_anpr)
+                    conn.executemany("""INSERT OR IGNORE INTO anpr_reads (id,plate,camera,confidence,vehicle_type,created_at)
+                                        VALUES (?,?,?,?,?,?)""", [
+                        (rid, p_text, cam_id, conf, vtype, ts)
+                        for rid, p_text, cam_id, conf, vtype, ts in new_anpr
+                    ])
                 conn.commit()
-                conn.close()
-            except Exception:
-                pass
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
 
     async def _run_loop(self):
         cap = None

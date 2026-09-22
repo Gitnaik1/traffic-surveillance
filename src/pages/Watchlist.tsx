@@ -79,7 +79,7 @@ function WatchlistMatchBanner({ alert, onDismiss }: { alert: Alert; onDismiss: (
 
 function AddVehicleModal({ onClose, onAdd }: {
   onClose: () => void;
-  onAdd: (data: { plate_number: string; description: string; reason: string; priority: string; notes: string }) => void;
+  onAdd: (data: { plate_number: string; description: string; reason: string; priority: string; notes: string }) => Promise<void>;
 }) {
   const [form, setForm] = useState({
     plate_number: "",
@@ -88,11 +88,24 @@ function AddVehicleModal({ onClose, onAdd }: {
     priority: "medium",
     notes: "",
   });
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = () => {
-    if (!form.plate_number.trim()) return;
-    onAdd(form);
-    onClose();
+  const handleSubmit = async () => {
+    const plate = form.plate_number.trim().toUpperCase();
+    if (!plate) {
+      setError("License plate number is required.");
+      return;
+    }
+    setIsSaving(true);
+    setError(null);
+    try {
+      await onAdd({ ...form, plate_number: plate });
+      onClose();
+    } catch {
+      setError("Failed to add vehicle. Please try again.");
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -106,7 +119,7 @@ function AddVehicleModal({ onClose, onAdd }: {
         justifyContent: "center",
       }}
     >
-      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)" }} />
+      <div onClick={!isSaving ? onClose : undefined} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)" }} />
       <div
         style={{
           position: "relative",
@@ -133,6 +146,7 @@ function AddVehicleModal({ onClose, onAdd }: {
           </div>
           <button
             onClick={onClose}
+            disabled={isSaving}
             style={{
               background: "transparent",
               border: "1px solid #1e2d45",
@@ -140,7 +154,7 @@ function AddVehicleModal({ onClose, onAdd }: {
               borderRadius: 6,
               width: 30,
               height: 30,
-              cursor: "pointer",
+              cursor: isSaving ? "not-allowed" : "pointer",
               fontSize: 14,
             }}
           >
@@ -150,6 +164,11 @@ function AddVehicleModal({ onClose, onAdd }: {
 
         {/* Form */}
         <div style={{ padding: "20px" }}>
+          {error && (
+            <div style={{ marginBottom: 14, padding: "8px 12px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, color: "#f87171", fontSize: 12 }}>
+              {error}
+            </div>
+          )}
           {[
             { label: "License Plate *", key: "plate_number", placeholder: "e.g. KA01AB1234", mono: true },
             { label: "Vehicle Description", key: "description", placeholder: "Color, make, model" },
@@ -164,19 +183,22 @@ function AddVehicleModal({ onClose, onAdd }: {
                 value={(form as Record<string, string>)[key]}
                 onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                 placeholder={placeholder}
+                disabled={isSaving}
                 style={{
                   width: "100%",
                   padding: "9px 12px",
                   borderRadius: 6,
                   border: "1px solid #1e2d45",
-                  background: "#0d1420",
+                  background: isSaving ? "#0a101c" : "#0d1420",
                   color: "#f1f5f9",
                   fontSize: 13,
                   fontFamily: mono ? "JetBrains Mono, monospace" : "Inter, sans-serif",
                   outline: "none",
                   transition: "border-color 0.15s",
+                  opacity: isSaving ? 0.6 : 1,
+                  boxSizing: "border-box",
                 }}
-                onFocus={(e) => { e.target.style.borderColor = "#2563eb"; }}
+                onFocus={(e) => { if (!isSaving) e.target.style.borderColor = "#2563eb"; }}
                 onBlur={(e) => { e.target.style.borderColor = "#1e2d45"; }}
               />
             </div>
@@ -194,6 +216,7 @@ function AddVehicleModal({ onClose, onAdd }: {
                   <button
                     key={p}
                     onClick={() => setForm((f) => ({ ...f, priority: p }))}
+                    disabled={isSaving}
                     style={{
                       flex: 1,
                       padding: "7px 8px",
@@ -203,10 +226,11 @@ function AddVehicleModal({ onClose, onAdd }: {
                       color: form.priority === p ? colors[p] : "#64748b",
                       fontSize: 11,
                       fontWeight: form.priority === p ? 700 : 400,
-                      cursor: "pointer",
+                      cursor: isSaving ? "not-allowed" : "pointer",
                       textTransform: "capitalize",
                       fontFamily: "JetBrains Mono, monospace",
                       letterSpacing: "0.05em",
+                      opacity: isSaving ? 0.6 : 1,
                     }}
                   >
                     {p}
@@ -229,6 +253,7 @@ function AddVehicleModal({ onClose, onAdd }: {
         >
           <button
             onClick={onClose}
+            disabled={isSaving}
             style={{
               padding: "8px 18px",
               borderRadius: 6,
@@ -236,25 +261,36 @@ function AddVehicleModal({ onClose, onAdd }: {
               background: "transparent",
               color: "#64748b",
               fontSize: 12,
-              cursor: "pointer",
+              cursor: isSaving ? "not-allowed" : "pointer",
+              opacity: isSaving ? 0.5 : 1,
             }}
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
+            disabled={isSaving}
             style={{
               padding: "8px 18px",
               borderRadius: 6,
               border: "1px solid #2563eb",
-              background: "#2563eb",
+              background: isSaving ? "#1d4ed8" : "#2563eb",
               color: "#fff",
               fontSize: 12,
               fontWeight: 600,
-              cursor: "pointer",
+              cursor: isSaving ? "not-allowed" : "pointer",
+              opacity: isSaving ? 0.8 : 1,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
             }}
           >
-            Add to Watchlist
+            {isSaving ? (
+              <>
+                <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                Adding...
+              </>
+            ) : "Add to Watchlist"}
           </button>
         </div>
       </div>
@@ -360,8 +396,8 @@ export default function Watchlist() {
     return match;
   }, [alerts, watchlist, bannerDismissed]);
 
-  const handleAdd = (data: { plate_number: string; description: string; reason: string; priority: string; notes: string }) => {
-    addPlateToWatchlist(data);
+  const handleAdd = async (data: { plate_number: string; description: string; reason: string; priority: string; notes: string }): Promise<void> => {
+    await addPlateToWatchlist(data);
   };
 
   if (watchlistLoading) {
@@ -470,7 +506,19 @@ export default function Watchlist() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((entry, i) => (
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={9} style={{ padding: "40px 14px", textAlign: "center", color: "#475569", fontSize: 13 }}>
+                  <div style={{ fontSize: 24, marginBottom: 8 }}>🔍</div>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                    {watchlist.length === 0 ? "No vehicles on watchlist" : `No ${filterStatus === "all" ? "" : filterStatus + " "}entries`}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#334155" }}>
+                    {watchlist.length === 0 ? 'Click "+ Add Vehicle" to add the first entry.' : "Try changing the status filter."}
+                  </div>
+                </td>
+              </tr>
+            ) : filtered.map((entry, i) => (
               <tr
                 key={entry.id}
                 onClick={() => setSelected(entry)}
@@ -487,19 +535,19 @@ export default function Watchlist() {
                   {entry.plate_number}
                 </td>
                 <td style={{ padding: "11px 14px", fontSize: 11, color: "#94a3b8", fontFamily: "JetBrains Mono, monospace" }}>
-                  {entry.vehicle_id}
+                  {entry.vehicle_id || "—"}
                 </td>
                 <td style={{ padding: "11px 14px", fontSize: 12, color: "#94a3b8", maxWidth: 180 }}>
-                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.description}</div>
+                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.description || "—"}</div>
                 </td>
                 <td style={{ padding: "11px 14px", fontSize: 12, color: "#94a3b8", maxWidth: 200 }}>
-                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.reason}</div>
+                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.reason || "—"}</div>
                 </td>
                 <td style={{ padding: "11px 14px" }}>
                   <Badge severity={entry.priority} />
                 </td>
                 <td style={{ padding: "11px 14px", fontSize: 11, color: "#64748b", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap" }}>
-                  {entry.created_at.slice(0, 10)}
+                  {entry.created_at ? entry.created_at.slice(0, 10) : "—"}
                 </td>
                 <td style={{ padding: "11px 14px", fontSize: 11, color: "#64748b", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap" }}>
                   {entry.last_seen || "—"}

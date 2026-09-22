@@ -51,6 +51,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [camerasLoading, setCamerasLoading] = useState(true);
 
   const alertsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const watchlistIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const camerasIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const healthIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -109,11 +110,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     healthIntervalRef.current = setInterval(checkHealth, 30_000);
     alertsIntervalRef.current = setInterval(fetchAlerts, 10_000);
+    watchlistIntervalRef.current = setInterval(fetchWatchlist, 30_000);
     camerasIntervalRef.current = setInterval(fetchCameras, 30_000);
 
     return () => {
       if (healthIntervalRef.current) clearInterval(healthIntervalRef.current);
       if (alertsIntervalRef.current) clearInterval(alertsIntervalRef.current);
+      if (watchlistIntervalRef.current) clearInterval(watchlistIntervalRef.current);
       if (camerasIntervalRef.current) clearInterval(camerasIntervalRef.current);
     };
   }, [checkHealth, fetchAlerts, fetchWatchlist, fetchCameras]);
@@ -121,18 +124,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Actions ──────────────────────────────────────────────────────────────
 
   const addPlateToWatchlist = useCallback(async (data: Parameters<typeof addToWatchlist>[0]) => {
-    await addToWatchlist(data);
-    await fetchWatchlist();
+    try {
+      await addToWatchlist(data);
+    } catch (err) {
+      console.error('[Watchlist] addToWatchlist failed:', err);
+    } finally {
+      await fetchWatchlist();
+    }
   }, [fetchWatchlist]);
 
   const removePlateFromWatchlist = useCallback(async (plate: string) => {
-    await removeFromWatchlist(plate);
-    await fetchWatchlist();
+    try {
+      await removeFromWatchlist(plate);
+    } catch (err) {
+      console.error('[Watchlist] removeFromWatchlist failed:', err);
+    } finally {
+      await fetchWatchlist();
+    }
   }, [fetchWatchlist]);
 
   const toggleWatchlistActive = useCallback(async (id: string, active: boolean) => {
-    await updateWatchlistEntry(id, { active });
-    await fetchWatchlist();
+    try {
+      await updateWatchlistEntry(id, { active });
+    } catch (err) {
+      console.error('[Watchlist] toggleWatchlistActive failed:', err);
+    } finally {
+      await fetchWatchlist();
+    }
   }, [fetchWatchlist]);
 
   const dismissAlert = useCallback(async (id: string) => {
