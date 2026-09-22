@@ -121,12 +121,8 @@ class SurveillancePipeline:
             return None, {}
 
         self.frame_num += 1
-        # Step 1: Detect vehicles (run detection every 2nd frame for 2x performance boost)
-        if self.frame_num % 2 == 1 or not self.last_detections:
-            detections = self.detector.detect_vehicles(frame)
-            self.last_detections = detections
-        else:
-            detections = self.last_detections
+        # Step 1: Detect vehicles on every frame for exact real-time accuracy
+        detections = self.detector.detect_vehicles(frame)
 
         # Step 2: Track (returns {VEH_XXX: [x,y,w,h]})
         tracked_bboxes = self.tracker.update(detections)

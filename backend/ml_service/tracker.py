@@ -102,9 +102,9 @@ def _bbox_iou(box1, box2):
 
 
 class _CentroidTracker:
-    """Robust centroid + IoU tracker with bounding box smoothing."""
+    """Robust centroid + IoU tracker with instantaneous cleanup of departed vehicles."""
 
-    def __init__(self, max_disappeared=35, max_distance=160):
+    def __init__(self, max_disappeared=10, max_distance=180):
         self.next_object_id = 1
         self.objects = {}
         self.bboxes = {}
@@ -131,7 +131,8 @@ class _CentroidTracker:
                 self.disappeared[obj_id] += 1
                 if self.disappeared[obj_id] > self.max_disappeared:
                     self.deregister(obj_id)
-            return self.bboxes
+            # When no vehicles are detected, do NOT return stale ghost boxes!
+            return {}
 
         input_centroids = np.zeros((len(detections), 2), dtype="int")
         input_bboxes = []
@@ -147,27 +148,28 @@ class _CentroidTracker:
             object_ids = list(self.objects)
             object_centroids = list(self.objects.values())
             D = dist.cdist(np.array(object_centroids), input_centroids)
-            rows = D.min(axis=1).argsort()
-            cols = D.argmin(axis=1)[rows]
+            
+            # Global minimum distance pairing
+            row_indices, col_indices = np.unravel_index(np.argsort(D, axis=None), D.shape)
             used_rows, used_cols = set(), set()
-            for row, col in zip(rows, cols):
-                if row in used_rows or col in used_cols:
+            for r, c in zip(row_indices, col_indices):
+                if r in used_rows or c in used_cols:
                     continue
-                obj_id = object_ids[row]
+                obj_id = object_ids[r]
                 prev_bbox = self.bboxes[obj_id]
-                curr_bbox = input_bboxes[col]
+                curr_bbox = input_bboxes[c]
                 iou = _bbox_iou(prev_bbox, curr_bbox)
 
                 # Match if either within distance OR bounding boxes overlap
-                if D[row, col] > self.max_distance and iou < 0.15:
+                if D[r, c] > self.max_distance and iou < 0.10:
                     continue
 
                 # EMA smooth the bounding box to eliminate jitter
                 smoothed = [
-                    int(0.65 * curr_bbox[0] + 0.35 * prev_bbox[0]),
-                    int(0.65 * curr_bbox[1] + 0.35 * prev_bbox[1]),
-                    int(0.65 * curr_bbox[2] + 0.35 * prev_bbox[2]),
-                    int(0.65 * curr_bbox[3] + 0.35 * prev_bbox[3]),
+                    int(0.80 * curr_bbox[0] + 0.20 * prev_bbox[0]),
+                    int(0.80 * curr_bbox[1] + 0.20 * prev_bbox[1]),
+                    int(0.80 * curr_bbox[2] + 0.20 * prev_bbox[2]),
+                    int(0.80 * curr_bbox[3] + 0.20 * prev_bbox[3]),
                 ]
                 self.objects[obj_id] = (
                     int(smoothed[0] + smoothed[2] / 2),
@@ -175,19 +177,24 @@ class _CentroidTracker:
                 )
                 self.bboxes[obj_id] = smoothed
                 self.disappeared[obj_id] = 0
-                used_rows.add(row)
-                used_cols.add(col)
+                used_rows.add(r)
+                used_cols.add(c)
 
-            for row in set(range(D.shape[0])).difference(used_rows):
-                obj_id = object_ids[row]
+            for r in set(range(D.shape[0])).difference(used_rows):
+                obj_id = object_ids[r]
                 self.disappeared[obj_id] += 1
                 if self.disappeared[obj_id] > self.max_disappeared:
                     self.deregister(obj_id)
 
-            for col in set(range(D.shape[1])).difference(used_cols):
-                self.register(input_centroids[col], input_bboxes[col])
+            for c in set(range(D.shape[1])).difference(used_cols):
+                self.register(input_centroids[c], input_bboxes[c])
 
-        return self.bboxes
+        # Return ONLY objects actively seen and confirmed in the current frame!
+        return {
+            obj_id: self.bboxes[obj_id]
+            for obj_id in self.objects
+            if self.disappeared.get(obj_id, 0) == 0
+        }
 
 
 # ── Public alias: always pick the best available tracker ────────────────────
