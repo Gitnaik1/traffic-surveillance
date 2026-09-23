@@ -142,8 +142,11 @@ class SurveillancePipeline:
                                  max(0, x):min(frame.shape[1], x+w)]
 
             if veh_id not in self.vehicle_records:
-                plate_crop, _ = self.detector.crop_plate_region(frame, bbox)
-                plate_text, conf, is_valid = self.ocr_engine.read_plate(plate_crop)
+                if hasattr(self.ocr_engine, 'read_vehicle_crop'):
+                    plate_text, conf, is_valid = self.ocr_engine.read_vehicle_crop(vehicle_crop)
+                else:
+                    plate_crop, _ = self.detector.crop_plate_region(frame, bbox)
+                    plate_text, conf, is_valid = self.ocr_engine.read_plate(plate_crop)
                 is_flagged = plate_text in self.watchlist
 
                 self.vehicle_records[veh_id] = {
