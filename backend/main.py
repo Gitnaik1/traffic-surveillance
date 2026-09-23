@@ -1106,28 +1106,69 @@ CAMERA_FOOTAGE_MAP = {
 }
 
 def resolve_camera_footage(camera_id: str, root_dir: str) -> str:
-    """Finds the AICity MTMC dataset video path for a given camera ID, checking local files and the source zip."""
-    # 1. Direct map lookup
+    """Finds video footage for a given camera ID, checking Indian footage folders, custom video directories, and datasets."""
+    cam_digits = "".join(filter(str.isdigit, camera_id))
+    cam_num = int(cam_digits) if cam_digits else 1
+
+    # 1. Check user-provided video directories (Indian traffic footage / custom CCTV)
+    search_dirs = [
+        os.path.join(root_dir, "data", "indian_traffic"),
+        os.path.join(root_dir, "data", "videos"),
+        os.path.join(root_dir, "data", "sample_videos"),
+        os.path.join(root_dir, "data"),
+        root_dir,
+    ]
+    exts = [".mp4", ".avi", ".mkv", ".mov", ".webm"]
+
+    # Check exact camera matches like CAM-001.mp4, CAM_01.mp4, cam1.mp4, c001.mp4
+    candidate_names = [
+        camera_id,
+        camera_id.replace("-", "_"),
+        camera_id.replace("_", "-"),
+        f"CAM_{cam_num:02d}",
+        f"CAM_{cam_num}",
+        f"cam_{cam_num:02d}",
+        f"cam{cam_num}",
+        f"c{cam_num:03d}",
+        f"video_{cam_num}",
+        f"{cam_num}",
+    ]
+
+    for d in search_dirs:
+        if os.path.exists(d):
+            for name in candidate_names:
+                for ext in exts:
+                    test_file = os.path.join(d, f"{name}{ext}")
+                    if os.path.isfile(test_file):
+                        return test_file
+
+    # 2. If no exact camera file, look for any general videos in data/indian_traffic or data/videos
+    for d in [os.path.join(root_dir, "data", "indian_traffic"), os.path.join(root_dir, "data", "videos"), os.path.join(root_dir, "data", "sample_videos")]:
+        if os.path.exists(d):
+            all_vids = [os.path.join(d, f) for f in os.listdir(d) if any(f.lower().endswith(e) for e in exts)]
+            if all_vids:
+                return all_vids[(cam_num - 1) % len(all_vids)]
+
+    # 3. Direct map lookup
     if camera_id in CAMERA_FOOTAGE_MAP:
         rel_path = CAMERA_FOOTAGE_MAP[camera_id]
         full_path = os.path.join(root_dir, rel_path) if not os.path.isabs(rel_path) else rel_path
         if os.path.exists(full_path):
             return full_path
 
-    # 2. Extract numeric camera index (e.g. CAM-003 -> 3 -> c003)
-    cam_digits = "".join(filter(str.isdigit, camera_id))
+    # 4. Extract numeric camera index from AICity dataset if present
     dataset_dir = get_aicity_dataset_dir(root_dir)
     if cam_digits:
-        c_name = f"c{int(cam_digits):03d}"
+        c_name = f"c{cam_num:03d}"
         for sub in ["train/S01", "validation/S02", "train/S03", "train/S04", "validation/S05", "test/S06"]:
             candidate = os.path.join(dataset_dir, sub, c_name, "vdo.avi")
             if os.path.exists(candidate):
                 return candidate
 
-    # 3. If missing from extracted dataset but zip exists, extract target camera on-demand
+    # 5. If missing from extracted dataset but zip exists, extract target camera on-demand
     if os.path.exists(AICITY_ZIP_PATH) and cam_digits:
         import zipfile
-        c_name = f"c{int(cam_digits):03d}"
+        c_name = f"c{cam_num:03d}"
         try:
             with zipfile.ZipFile(AICITY_ZIP_PATH, 'r') as z:
                 target_entries = [f for f in z.namelist() if f.endswith(f"{c_name}/vdo.avi")]
@@ -1139,7 +1180,7 @@ def resolve_camera_footage(camera_id: str, root_dir: str) -> str:
         except Exception as e:
             print(f"[Footage] Error extracting from zip: {e}")
 
-    # 4. Fallback to default S01/c001
+    # 6. Fallback to default S01/c001
     default_dataset_vdo = os.path.join(dataset_dir, "train", "S01", "c001", "vdo.avi")
     if os.path.exists(default_dataset_vdo):
         return default_dataset_vdo
