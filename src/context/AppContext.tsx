@@ -125,32 +125,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addPlateToWatchlist = useCallback(async (data: Parameters<typeof addToWatchlist>[0]) => {
     try {
-      await addToWatchlist(data);
-    } catch (err) {
-      console.error('[Watchlist] addToWatchlist failed:', err);
-    } finally {
-      await fetchWatchlist();
+      const created = await addToWatchlist(data);
+      if (created && created.plate_number) {
+        setWatchlist(prev => [created, ...prev.filter(w => w.plate_number !== created.plate_number)]);
+      }
+    } catch (e) {
+      console.error("Add watchlist error:", e);
     }
+    await fetchWatchlist();
   }, [fetchWatchlist]);
 
   const removePlateFromWatchlist = useCallback(async (plate: string) => {
+    setWatchlist(prev => prev.filter(w => w.plate_number !== plate));
     try {
       await removeFromWatchlist(plate);
-    } catch (err) {
-      console.error('[Watchlist] removeFromWatchlist failed:', err);
-    } finally {
-      await fetchWatchlist();
+    } catch (e) {
+      console.error("Remove watchlist error:", e);
     }
+    await fetchWatchlist();
   }, [fetchWatchlist]);
 
   const toggleWatchlistActive = useCallback(async (id: string, active: boolean) => {
+    setWatchlist(prev => prev.map(w => w.id === id ? { ...w, active: active ? 1 : 0 } : w));
     try {
       await updateWatchlistEntry(id, { active });
-    } catch (err) {
-      console.error('[Watchlist] toggleWatchlistActive failed:', err);
-    } finally {
-      await fetchWatchlist();
+    } catch (e) {
+      console.error("Toggle watchlist error:", e);
     }
+    await fetchWatchlist();
   }, [fetchWatchlist]);
 
   const dismissAlert = useCallback(async (id: string) => {

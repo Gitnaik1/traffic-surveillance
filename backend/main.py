@@ -244,6 +244,40 @@ def init_db():
     except Exception:
         pass
 
+    # Column migration for watchlist if old DB schema exists
+    try:
+        col_names = [col[1] for col in c.execute("PRAGMA table_info(watchlist)").fetchall()]
+        if col_names and "id" not in col_names:
+            c.execute("ALTER TABLE watchlist RENAME TO watchlist_old")
+            c.execute("""
+            CREATE TABLE watchlist (
+                id TEXT PRIMARY KEY,
+                plate_number TEXT UNIQUE NOT NULL,
+                vehicle_id TEXT,
+                description TEXT,
+                reason TEXT,
+                priority TEXT DEFAULT 'medium',
+                notes TEXT,
+                active INTEGER DEFAULT 1,
+                alert_count INTEGER DEFAULT 0,
+                last_seen TEXT,
+                last_camera TEXT,
+                created_at TEXT
+            );""")
+            c.execute("""INSERT OR IGNORE INTO watchlist (id, plate_number, vehicle_id, description, reason, priority, notes, active, alert_count, last_seen, last_camera, created_at)
+                         SELECT COALESCE(plate_number, 'WL-' || hex(randomblob(4))), plate_number, vehicle_id, description, reason, COALESCE(priority, 'medium'), notes, COALESCE(active, 1), COALESCE(alert_count, 0), last_seen, last_camera, COALESCE(created_at, datetime('now'))
+                         FROM watchlist_old""")
+            c.execute("DROP TABLE watchlist_old")
+    except Exception as e:
+        print(f"[DB Migration Warn] {e}")
+
+    try:
+        c.execute("UPDATE watchlist SET created_at = datetime('now') WHERE created_at IS NULL")
+        c.execute("UPDATE watchlist SET priority = 'medium' WHERE priority IS NULL")
+        c.execute("UPDATE watchlist SET id = 'WL-' || hex(randomblob(4)) WHERE id IS NULL")
+    except Exception:
+        pass
+
     _seed_initial_data(c, conn)
     conn.close()
 
@@ -608,7 +642,19 @@ def get_watchlist():
     conn = get_db()
     rows = conn.execute("SELECT * FROM watchlist ORDER BY created_at DESC").fetchall()
     conn.close()
-    return {"watchlist": rows_to_list(rows)}
+    items = []
+    for r in rows:
+        d = dict(r)
+        if not d.get("id"):
+            d["id"] = f"WL-{str(uuid.uuid4())[:8].upper()}"
+        if not d.get("created_at"):
+            d["created_at"] = datetime.utcnow().isoformat()
+        if not d.get("priority"):
+            d["priority"] = "medium"
+        if d.get("active") is None:
+            d["active"] = 1
+        items.append(d)
+    return {"watchlist": items}
 
 @app.post("/api/watchlist")
 def add_watchlist(item: WatchlistAdd):
@@ -616,24 +662,38 @@ def add_watchlist(item: WatchlistAdd):
     if not plate:
         raise HTTPException(status_code=400, detail="Plate number required")
     conn = get_db()
-    existing = conn.execute("SELECT id FROM watchlist WHERE plate_number=?", (plate,)).fetchone()
+    existing = conn.execute("SELECT * FROM watchlist WHERE plate_number=? OR REPLACE(plate_number, ' ', '')=REPLACE(?, ' ', '')", (plate, plate)).fetchone()
+    now = datetime.utcnow().isoformat()
     if existing:
-        # Reactivate if already exists
-        conn.execute("UPDATE watchlist SET active=1 WHERE plate_number=?", (plate,))
+        # Reactivate and update if already exists
+        conn.execute("""UPDATE watchlist 
+                        SET active=1, 
+                            description=CASE WHEN ? != '' THEN ? ELSE description END,
+                            reason=CASE WHEN ? != '' THEN ? ELSE reason END,
+                            priority=CASE WHEN ? != '' THEN ? ELSE priority END,
+                            notes=CASE WHEN ? != '' THEN ? ELSE notes END,
+                            created_at=COALESCE(created_at, ?)
+                        WHERE plate_number=?""",
+                     (item.description, item.description, item.reason, item.reason, item.priority or "medium", item.priority or "medium", item.notes, item.notes, now, existing["plate_number"]))
         conn.commit()
-        row = conn.execute("SELECT * FROM watchlist WHERE plate_number=?", (plate,)).fetchone()
+        row = conn.execute("SELECT * FROM watchlist WHERE plate_number=?", (existing["plate_number"],)).fetchone()
         conn.close()
-        return row_to_dict(row)
+        res = row_to_dict(row)
+        if res and not res.get("created_at"):
+            res["created_at"] = now
+        return res
     wl_id = f"WL-{str(uuid.uuid4())[:8].upper()}"
     vh_id = f"VH-{str(uuid.uuid4())[:4].upper()}"
-    now = datetime.utcnow().isoformat()
     conn.execute("""INSERT INTO watchlist (id,plate_number,vehicle_id,description,reason,priority,notes,active,alert_count,created_at)
                     VALUES (?,?,?,?,?,?,?,1,0,?)""",
-                 (wl_id, plate, item.vehicle_id or vh_id, item.description, item.reason, item.priority, item.notes, now))
+                 (wl_id, plate, item.vehicle_id or vh_id, item.description or f"Vehicle • {plate}", item.reason or "Active Watchlist Monitoring", item.priority or "medium", item.notes or "", now))
     conn.commit()
     row = conn.execute("SELECT * FROM watchlist WHERE id=?", (wl_id,)).fetchone()
     conn.close()
-    return row_to_dict(row)
+    res = row_to_dict(row)
+    if res and not res.get("created_at"):
+        res["created_at"] = now
+    return res
 
 @app.patch("/api/watchlist/{wl_id}")
 def update_watchlist_entry(wl_id: str, update: WatchlistUpdate):
