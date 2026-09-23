@@ -3,7 +3,7 @@ venv/
 __pycache__/
 *.pyc
 *.mp4
-*.db
+*.db*
 outputs/
 sample_videos/
 yolov8*.pt
