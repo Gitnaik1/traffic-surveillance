@@ -433,8 +433,9 @@ export default function Alerts() {
                 <td style={{ padding: "10px 14px", fontSize: 11, color: "#94a3b8", fontFamily: "JetBrains Mono, monospace" }}>{alert.subject}</td>
                 <td style={{ padding: "10px 14px", fontSize: 12, color: "#f1f5f9", fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>{alert.plate || "—"}</td>
                 <td style={{ padding: "10px 14px", fontSize: 12, color: "#22d3ee", fontFamily: "JetBrains Mono, monospace" }}>{alert.camera}</td>
-                <td style={{ padding: "10px 14px", fontSize: 12, color: "#94a3b8", whiteSpace: "nowrap" }}>{alert.location || "—"}</td>
-                <td style={{ padding: "10px 14px", fontSize: 11, color: "#64748b", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap" }}>{alert.timestamp.slice(11)}</td>
+                <td style={{ padding: "10px 14px", fontSize: 11, color: "#64748b", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap" }}>
+                  {alert.timestamp ? (alert.timestamp.includes("T") ? alert.timestamp.slice(11, 19) : alert.timestamp) : "—"}
+                </td>
                 <td style={{ padding: "10px 14px" }}><Badge severity={alert.acknowledged ? "resolved" : "active"} /></td>
                 <td style={{ padding: "10px 14px" }}>
                   <div style={{ display: "flex", gap: 6 }}>
