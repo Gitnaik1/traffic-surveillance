@@ -309,8 +309,8 @@ function WatchlistDetail({ entry, onClose, onToggle, onRemove }: { entry: Watchl
             ["Vehicle ID", entry.vehicle_id],
             ["Description", entry.description],
             ["Reason", entry.reason],
-            ["Priority", entry.priority?.toUpperCase()],
-            ["Created Date", entry.created_at],
+            ["Priority", (entry.priority || "medium").toUpperCase()],
+            ["Created Date", entry.created_at ? (entry.created_at.length >= 10 ? entry.created_at.slice(0, 10) : entry.created_at) : "—"],
             ["Last Seen", entry.last_seen || "—"],
             ["Last Camera", entry.last_camera || "—"],
           ].map(([key, val]) => (
@@ -496,10 +496,10 @@ export default function Watchlist() {
                   <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.reason}</div>
                 </td>
                 <td style={{ padding: "11px 14px" }}>
-                  <Badge severity={entry.priority} />
+                  <Badge severity={entry.priority || "medium"} />
                 </td>
                 <td style={{ padding: "11px 14px", fontSize: 11, color: "#64748b", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap" }}>
-                  {entry.created_at.slice(0, 10)}
+                  {entry.created_at ? (entry.created_at.length >= 10 ? entry.created_at.slice(0, 10) : entry.created_at) : "—"}
                 </td>
                 <td style={{ padding: "11px 14px", fontSize: 11, color: "#64748b", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap" }}>
                   {entry.last_seen || "—"}

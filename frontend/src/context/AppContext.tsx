@@ -121,17 +121,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Actions ──────────────────────────────────────────────────────────────
 
   const addPlateToWatchlist = useCallback(async (data: Parameters<typeof addToWatchlist>[0]) => {
-    await addToWatchlist(data);
+    try {
+      const created = await addToWatchlist(data);
+      if (created && created.plate_number) {
+        setWatchlist(prev => [created, ...prev.filter(w => w.plate_number !== created.plate_number)]);
+      }
+    } catch (e) {
+      console.error("Add watchlist error:", e);
+    }
     await fetchWatchlist();
   }, [fetchWatchlist]);
 
   const removePlateFromWatchlist = useCallback(async (plate: string) => {
-    await removeFromWatchlist(plate);
+    setWatchlist(prev => prev.filter(w => w.plate_number !== plate));
+    try {
+      await removeFromWatchlist(plate);
+    } catch (e) {
+      console.error("Remove watchlist error:", e);
+    }
     await fetchWatchlist();
   }, [fetchWatchlist]);
 
   const toggleWatchlistActive = useCallback(async (id: string, active: boolean) => {
-    await updateWatchlistEntry(id, { active });
+    setWatchlist(prev => prev.map(w => w.id === id ? { ...w, active: active ? 1 : 0 } : w));
+    try {
+      await updateWatchlistEntry(id, { active });
+    } catch (e) {
+      console.error("Toggle watchlist error:", e);
+    }
     await fetchWatchlist();
   }, [fetchWatchlist]);
 
