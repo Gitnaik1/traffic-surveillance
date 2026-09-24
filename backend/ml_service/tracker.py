@@ -92,7 +92,7 @@ except ImportError:
 class _CentroidTracker:
     """Original Person-2 centroid tracker — used only when supervision unavailable."""
 
-    def __init__(self, max_disappeared=20, max_distance=80):
+    def __init__(self, max_disappeared=3, max_distance=80):
         self.next_object_id = 1
         self.objects = {}
         self.bboxes = {}

@@ -5,6 +5,7 @@ Standardised to yolov8m.pt at conf=0.25 (Person 1's more-accurate model).
 All bboxes are output as xywh (Person 2 pipeline format).
 OpenCV BGSub fallback is kept for environments without ultralytics.
 """
+import os
 import cv2
 import numpy as np
 
@@ -17,7 +18,8 @@ VEHICLE_CLASS_IDS = {
 }
 
 # ── Standardised defaults (Fix 3) ───────────────────────────────────────────
-DEFAULT_MODEL      = "yolov8m.pt"   # was yolov8n.pt in Person-2 — medium is more accurate
+LOCAL_N = os.path.join(os.path.dirname(__file__), "yolov8n.pt")
+DEFAULT_MODEL      = "yolov8m.pt" if os.path.exists("yolov8m.pt") else (LOCAL_N if os.path.exists(LOCAL_N) else "yolov8n.pt")
 DEFAULT_CONFIDENCE = 0.25           # balanced: Person-1=0.15 (too low), Person-2=0.35 (too high)
 
 
@@ -29,6 +31,12 @@ class VehicleDetector:
 
         try:
             from ultralytics import YOLO
+            if not os.path.exists(model_name):
+                local_cand = os.path.join(os.path.dirname(__file__), model_name)
+                if os.path.exists(local_cand):
+                    model_name = local_cand
+                elif os.path.exists(LOCAL_N):
+                    model_name = LOCAL_N
             self.yolo_model = YOLO(model_name)
             self.use_yolo   = True
             print(f"[Detector] Loaded YOLO model: {model_name} (conf≥{confidence_threshold})")
