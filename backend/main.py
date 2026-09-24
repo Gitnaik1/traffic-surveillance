@@ -1133,6 +1133,8 @@ class CameraStreamWorker:
             if not ret:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 ret, frame = cap.read()
+                if self.pipeline and hasattr(self.pipeline, 'reset_tracking'):
+                    self.pipeline.reset_tracking()
 
         if not ret or frame is None:
             frame = generate_synthetic_frame(self.camera_id, frame_count)
@@ -1146,13 +1148,11 @@ class CameraStreamWorker:
 
         metadata = self.last_metadata
         if self.pipeline:
-            # Run detection on every 3rd frame so stream stays at 11+ FPS and CPU stays low
-            if frame_count % 3 == 0 or not self.last_metadata.get('detections'):
-                try:
-                    frame, metadata = self.pipeline.process_frame(frame)
-                    self.last_metadata = metadata
-                except Exception:
-                    pass
+            try:
+                frame, metadata = self.pipeline.process_frame(frame)
+                self.last_metadata = metadata
+            except Exception as e:
+                pass
 
         # Compress to JPEG with quality 65 (compact ~20-25KB payload for instant mobile/network loading)
         _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 65])
@@ -1201,12 +1201,19 @@ class CameraStreamWorker:
                     conn.executemany("""INSERT OR IGNORE INTO alerts (id,type,severity,subject,camera,plate,message,acknowledged,timestamp,created_at)
                                         VALUES (?,?,?,?,?,?,?,0,?,?)""", new_alerts)
                 if new_anpr:
-                    conn.executemany("""INSERT OR IGNORE INTO anpr_reads (id,plate_number,camera_id,confidence,vehicle_type,flagged,status,created_at)
-                                        VALUES (?,?,?,?,?,0,'Verified',?)""", new_anpr)
+                    conn.executemany("""INSERT OR IGNORE INTO anpr_reads (id,plate,camera,confidence,vehicle_type,created_at)
+                                        VALUES (?,?,?,?,?,?)""", [
+                        (rid, p_text, cam_id, conf, vtype, ts)
+                        for rid, p_text, cam_id, conf, vtype, ts in new_anpr
+                    ])
                 conn.commit()
                 conn.close()
-            except Exception:
-                pass
+            except Exception as e:
+                try:
+                    conn.rollback()
+                    conn.close()
+                except Exception:
+                    pass
 
     async def _run_loop(self):
         cap = None

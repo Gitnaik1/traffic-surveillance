@@ -67,15 +67,15 @@ export default function CameraDetail({ cameraId, onBack }: { cameraId: string; o
   const wsId = cam?.id || cameraId || 'CAM-001';
   const { frameUrl, metadata, connected, timestamp } = useCameraFeed(wsId, true);
 
-  // Build bbox annotations from WebSocket metadata detections
-  const annotations: BBoxAnnotation[] = (metadata?.detections || []).map((d, i) => ({
+  // Build bbox annotations for preview mode (when live video stream is not active)
+  const annotations: BBoxAnnotation[] = (metadata?.detections || []).map((d: any, i) => ({
     x: 8 + (i * 30) % 60, y: 30 + (i * 15) % 30, w: 20 + (i % 3) * 4, h: 18 + (i % 2) * 10,
-    id: d.id || `#${100 + i}`,
+    id: d.id || d.vehicle_id || `#${100 + i}`,
     type: d.type || 'Car',
-    conf: Math.round((d.confidence || 0.85) * 100),
-    plate: d.plate,
+    conf: Math.round((d.confidence || 0.85) * (d.confidence > 1 ? 1 : 100)),
+    plate: d.plate || d.plate_text,
     color: TYPE_COLORS[d.type || 'Car'] || TYPE_COLORS.default,
-    flagged: !!metadata?.alerts?.some(a => a.plate_text === d.plate),
+    flagged: !!(d.is_flagged || d.flagged || metadata?.alerts?.some(a => a.plate_text === (d.plate || d.plate_text))),
   }));
 
   // Append WS alerts to local timeline
@@ -89,6 +89,30 @@ export default function CameraDetail({ cameraId, onBack }: { cameraId: string; o
     }));
     setTimeline(prev => [...newEntries, ...prev].slice(0, 50));
   }, [metadata?.alerts]);
+
+  // Prepend live WebSocket vehicle detections to detected vehicles table
+  useEffect(() => {
+    if (!metadata?.detections?.length) return;
+    const nowStr = new Date().toLocaleTimeString('en-IN', { hour12: false });
+    setVehicles(prev => {
+      const existingIds = new Set(prev.map(p => p.vehicle_id));
+      const incoming: Vehicle[] = (metadata.detections as any[])
+        .filter(d => (d.vehicle_id || d.id) && !existingIds.has(d.vehicle_id || d.id))
+        .map(d => ({
+          id: d.vehicle_id || d.id,
+          vehicle_id: d.vehicle_id || d.id,
+          type: d.type || 'Car',
+          plate: d.plate_text || d.plate || '—',
+          confidence: Math.round((d.confidence || 0.92) * (d.confidence > 1 ? 1 : 100)),
+          track_status: 'Tracked',
+          camera: cam?.name || cameraId,
+          flagged: !!(d.is_flagged || d.flagged),
+          timestamp: nowStr,
+        }));
+      if (incoming.length === 0) return prev;
+      return [...incoming, ...prev].slice(0, 30);
+    });
+  }, [metadata?.detections, cameraId, cam?.name]);
 
   // Load historical vehicles + ANPR for this camera
   useEffect(() => {
@@ -191,8 +215,8 @@ export default function CameraDetail({ cameraId, onBack }: { cameraId: string; o
                   </svg>
                 )}
 
-                {/* CV Overlays */}
-                {showOverlays && annotations.map((ann, i) => <CVBox key={i} ann={ann} />)}
+                {/* CV Overlays (only rendered in offline preview mode to avoid duplicate overlay on live AI stream) */}
+                {showOverlays && !frameUrl && annotations.map((ann, i) => <CVBox key={i} ann={ann} />)}
 
                 {/* HUD corners */}
                 <div className="absolute top-2 left-2 w-5 h-5 border-l-2 border-t-2 border-[#3b82f6] border-opacity-60 pointer-events-none" />
@@ -209,7 +233,9 @@ export default function CameraDetail({ cameraId, onBack }: { cameraId: string; o
                 {/* Stats overlay */}
                 <div className="absolute top-3 right-3 bg-[#070c17] bg-opacity-80 border border-[#1a2a40] rounded px-2 py-1.5 text-[9px] font-mono z-20">
                   <div className="text-[#4d607a]">VEHICLES</div>
-                  <div className="text-[#60a5fa] font-bold text-sm">{cam?.vehicles ?? 0}</div>
+                  <div className="text-[#60a5fa] font-bold text-sm">
+                    {(connected && metadata?.detections !== undefined) ? metadata.detections.length : (cam?.vehicles ?? 0)}
+                  </div>
                 </div>
 
                 {/* Timestamp bottom */}
@@ -436,7 +462,7 @@ export default function CameraDetail({ cameraId, onBack }: { cameraId: string; o
               <div className="grid grid-cols-2 gap-px bg-[#0f1a2e]">
                 {[
                   { label: 'FPS', value: cam?.fps ? cam.fps.toString() : '—', color: '#60a5fa' },
-                  { label: 'Vehicles', value: cam?.vehicles?.toString() ?? '0', color: '#e2eaf3' },
+                  { label: 'Vehicles', value: (connected && metadata?.detections !== undefined) ? metadata.detections.length.toString() : (cam?.vehicles?.toString() ?? '0'), color: '#e2eaf3' },
                   { label: 'ANPR Reads', value: anprReads.length.toString(), color: '#60a5fa' },
                   { label: 'Traffic', value: cam?.traffic ?? '—', color: cam?.traffic === 'high' ? '#f87171' : cam?.traffic === 'moderate' ? '#fbbf24' : '#4ade80' },
                 ].map(stat => (

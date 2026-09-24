@@ -237,7 +237,9 @@ function DashboardLiveFeed({
 
         <div className="absolute top-3 right-3 px-2 py-1 rounded bg-[#070c17]/80 backdrop-blur-sm border border-[#1a2a40] text-[10px] font-mono text-right">
           <div className="text-[#4d607a] text-[8px]">REID / DETECTIONS</div>
-          <div className="text-[#06b6d4] font-bold">{metadata?.detections?.length || currentCam?.vehicles || 0} ACTIVE</div>
+          <div className="text-[#06b6d4] font-bold">
+            {(connected && metadata?.detections !== undefined) ? metadata.detections.length : (currentCam?.vehicles || 0)} ACTIVE
+          </div>
         </div>
 
         <div className="absolute bottom-3 left-3 px-2 py-0.5 rounded bg-[#070c17]/80 backdrop-blur-sm border border-[#1a2a40] text-[9px] font-mono text-[#8899b4]">

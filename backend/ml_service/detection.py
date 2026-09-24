@@ -20,7 +20,7 @@ VEHICLE_CLASS_IDS = {
 # ── Standardised defaults (Fix 3) ───────────────────────────────────────────
 LOCAL_N = os.path.join(os.path.dirname(__file__), "yolov8n.pt")
 DEFAULT_MODEL      = "yolov8m.pt" if os.path.exists("yolov8m.pt") else (LOCAL_N if os.path.exists(LOCAL_N) else "yolov8n.pt")
-DEFAULT_CONFIDENCE = 0.25           # balanced: Person-1=0.15 (too low), Person-2=0.35 (too high)
+DEFAULT_CONFIDENCE = 0.20           # optimal for surveillance: eliminates missed vehicles and flicker
 
 
 class VehicleDetector:
@@ -28,6 +28,17 @@ class VehicleDetector:
         self.conf_thresh = confidence_threshold
         self.yolo_model  = None
         self.use_yolo    = False
+        self.device      = "cpu"
+
+        # Hardware acceleration detection (MPS on Apple Silicon, CUDA on NVIDIA, CPU fallback)
+        try:
+            import torch
+            if torch.cuda.is_available():
+                self.device = "cuda"
+            elif torch.backends.mps.is_available():
+                self.device = "mps"
+        except Exception:
+            self.device = "cpu"
 
         try:
             from ultralytics import YOLO
@@ -39,7 +50,7 @@ class VehicleDetector:
                     model_name = LOCAL_N
             self.yolo_model = YOLO(model_name)
             self.use_yolo   = True
-            print(f"[Detector] Loaded YOLO model: {model_name} (conf≥{confidence_threshold})")
+            print(f"[Detector] Loaded YOLO model: {model_name} (conf≥{confidence_threshold}, device={self.device})")
         except Exception as e:
             print(f"[Detector] YOLO unavailable ({e}). Using OpenCV BGSub fallback.")
             self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
@@ -55,7 +66,11 @@ class VehicleDetector:
         detections = []
 
         if self.use_yolo and self.yolo_model is not None:
-            results = self.yolo_model(frame, imgsz=320, conf=self.conf_thresh, verbose=False)[0]
+            try:
+                results = self.yolo_model(frame, imgsz=640, device=self.device, conf=self.conf_thresh, verbose=False)[0]
+            except Exception:
+                self.device = "cpu"
+                results = self.yolo_model(frame, imgsz=640, device="cpu", conf=self.conf_thresh, verbose=False)[0]
             for box in results.boxes:
                 cls_id = int(box.cls[0])
                 conf   = float(box.conf[0])
