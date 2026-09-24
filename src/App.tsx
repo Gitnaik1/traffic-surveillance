@@ -1,4 +1,4 @@
-import { useState, Component, type ReactNode, type ErrorInfo } from 'react'
+import { useState, useEffect, Component, type ReactNode, type ErrorInfo } from 'react'
 import { AppProvider, useApp } from './context/AppContext'
 import Sidebar from './components/Sidebar'
 import Navbar from './components/Navbar'
@@ -86,6 +86,10 @@ function AppShell() {
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const { backendOnline, unacknowledgedCount } = useApp()
+
+  useEffect(() => {
+    document.title = 'UrbanTrax AI'
+  }, [])
 
   const pageInfo: Record<Page, { title: string; subtitle: string }> = {
     'dashboard': { title: 'Dashboard', subtitle: 'System overview and key metrics.' },
