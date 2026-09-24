@@ -954,7 +954,15 @@ async def websocket_camera_feed(websocket: WebSocket, camera_id: str):
 AICITY_ZIP_PATH = "/Users/pashanth/Downloads/AICity22_Track1_MTMC_Tracking.zip"
 
 def get_aicity_dataset_dir(root_dir: str) -> str:
-    return os.path.join(root_dir, "data", "vehicle_reid_dataset")
+    candidates = [
+        os.path.join(root_dir, "dataset"),
+        os.path.join(root_dir, "data", "dataset"),
+        os.path.join(root_dir, "data", "vehicle_reid_dataset"),
+    ]
+    for c in candidates:
+        if os.path.isdir(c):
+            return c
+    return os.path.join(root_dir, "dataset")
 
 CAMERA_FOOTAGE_MAP = {
     # Sequence S01 (Intersection - Cameras 1-5)
@@ -1046,12 +1054,14 @@ def resolve_camera_footage(camera_id: str, root_dir: str) -> str:
                     if os.path.isfile(test_file):
                         return test_file
 
-    # 2. If no exact camera file, look for any general videos in data/indian_traffic or data/videos
-    for d in [os.path.join(root_dir, "data", "indian_traffic"), os.path.join(root_dir, "data", "videos"), os.path.join(root_dir, "data", "sample_videos")]:
-        if os.path.exists(d):
-            all_vids = [os.path.join(d, f) for f in os.listdir(d) if any(f.lower().endswith(e) for e in exts)]
-            if all_vids:
-                return all_vids[(cam_num - 1) % len(all_vids)]
+    # 2. Check AICity multi-camera dataset folder (c001, c002, etc.)
+    dataset_dir = get_aicity_dataset_dir(root_dir)
+    if os.path.exists(dataset_dir) and cam_digits:
+        c_name = f"c{cam_num:03d}"
+        for sub in ["train/S01", "validation/S02", "train/S03", "train/S04", "validation/S05", "test/S06"]:
+            candidate = os.path.join(dataset_dir, sub, c_name, "vdo.avi")
+            if os.path.exists(candidate):
+                return candidate
 
     # 3. Direct map lookup
     if camera_id in CAMERA_FOOTAGE_MAP:
@@ -1060,14 +1070,12 @@ def resolve_camera_footage(camera_id: str, root_dir: str) -> str:
         if os.path.exists(full_path):
             return full_path
 
-    # 4. Extract numeric camera index from AICity dataset if present
-    dataset_dir = get_aicity_dataset_dir(root_dir)
-    if cam_digits:
-        c_name = f"c{cam_num:03d}"
-        for sub in ["train/S01", "validation/S02", "train/S03", "train/S04", "validation/S05", "test/S06"]:
-            candidate = os.path.join(dataset_dir, sub, c_name, "vdo.avi")
-            if os.path.exists(candidate):
-                return candidate
+    # 4. If no exact camera file, look for any general videos in data/indian_traffic or data/videos
+    for d in [os.path.join(root_dir, "data", "indian_traffic"), os.path.join(root_dir, "data", "videos"), os.path.join(root_dir, "data", "sample_videos")]:
+        if os.path.exists(d):
+            all_vids = [os.path.join(d, f) for f in os.listdir(d) if any(f.lower().endswith(e) for e in exts)]
+            if all_vids:
+                return all_vids[(cam_num - 1) % len(all_vids)]
 
     # 5. If missing from extracted dataset but zip exists, extract target camera on-demand
     if os.path.exists(AICITY_ZIP_PATH) and cam_digits:
